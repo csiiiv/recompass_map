@@ -39,6 +39,10 @@ export const FUEL_ORDER = [
   "Natural Gas",
 ];
 
+// Sensitivity layer colors are theme-aware: darker variants for the light
+// basemap (bright hues wash out to ~1-2:1 there), brighter for the dark one.
+// `color` = light mode, `colorDark` = dark mode (falls back to `color`).
+// Verified >=3:1 against both CARTO Voyager and Dark Matter land/water tones.
 export const LAYERS = {
   plants: { label: "RE & power plants", color: null },
   // Hollow rings. The stroke is theme-specific: #7c2d12 is only 1.06:1 against
@@ -49,26 +53,48 @@ export const LAYERS = {
     stroke: "#7c2d12",
     strokeDark: "#fde047",
   },
-  protected_areas: { label: "Protected areas (WDPA)", color: "#22c55e" },
-  kba: { label: "Key Biodiversity Areas", color: "#ec4899" },
-  mpa: { label: "Marine protected areas", color: "#06b6d4" },
-  land_deals: { label: "Large-scale land deals", color: "#8b5cf6" },
+  protected_areas: {
+    label: "Protected areas (WDPA)",
+    color: "#15803d",
+    colorDark: "#22c55e",
+  },
+  kba: {
+    label: "Key Biodiversity Areas",
+    color: "#be185d",
+    colorDark: "#ec4899",
+  },
+  mpa: { label: "Marine protected areas", color: "#0e7490", colorDark: "#06b6d4" },
+  land_deals: {
+    label: "Large-scale land deals",
+    color: "#7c3aed",
+    colorDark: "#8b5cf6",
+  },
   land_deal_sites: {
     label: "Land deal sites (points)",
-    color: "#8b5cf6",
+    color: "#7c3aed",
+    colorDark: "#8b5cf6",
     note: "Deals without mapped polygons",
   },
   ancestral_domains: {
     label: "Ancestral domains (pending NCIP)",
     color: "#854d0e", // earth brown — clear of solar amber
+    colorDark: "#f59e0b",
     pending: true,
   },
   municipal_waters: {
     label: "Municipal waters (pending UP-MSI)",
     color: "#2563eb",
+    colorDark: "#3b82f6",
     pending: true,
   },
 };
+
+// Resolve a layer color for the current theme.
+export function layerColor(id, dark = false) {
+  const cfg = LAYERS[id];
+  if (!cfg) return "#71717a";
+  return (dark ? cfg.colorDark : cfg.color) || cfg.color;
+}
 
 export const STATUS_OPTIONS = [
   "Operational",

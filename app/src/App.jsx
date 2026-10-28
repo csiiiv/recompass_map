@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { Popup as MapLibrePopup } from "maplibre-gl";
 import { createMap, basemapStyle } from "./maplibre.js";
-import { fuelColor, LAYERS, HALO, FLAG_COLOR } from "./constants.js";
+import { fuelColor, LAYERS, HALO, FLAG_COLOR, layerColor } from "./constants.js";
 import DetailPanel from "./DetailPanel.jsx";
 import Sidebar from "./Sidebar.jsx";
 import OverlapsList from "./OverlapsList.jsx";
@@ -290,7 +290,9 @@ export default function App() {
             10,
             ["case", [">", ["get", "potential_mw"], 100], 12, 8],
           ],
-          "circle-stroke-color": dark ? LAYERS.awarded.strokeDark : LAYERS.awarded.stroke,
+          "circle-stroke-color": dark
+            ? LAYERS.awarded.strokeDark
+            : LAYERS.awarded.stroke,
           "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 5, 1.5, 10, 2.5],
           "circle-stroke-opacity": 0.9,
         },
@@ -331,14 +333,14 @@ export default function App() {
               id: cfg.id,
               type: "fill",
               source: cfg.id,
-              paint: { "fill-color": LAYERS[cfg.id].color, "fill-opacity": 0.12 },
+              paint: { "fill-color": layerColor(cfg.id, dark), "fill-opacity": 0.12 },
             });
             map.addLayer({
               id: `${cfg.id}-outline`,
               type: "line",
               source: cfg.id,
               paint: {
-                "line-color": LAYERS[cfg.id].color,
+                "line-color": layerColor(cfg.id, dark),
                 "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.6, 10, 1.6],
                 "line-opacity": 0.7,
               },
@@ -349,7 +351,7 @@ export default function App() {
               type: "circle",
               source: cfg.id,
               paint: {
-                "circle-color": LAYERS[cfg.id].color,
+                "circle-color": layerColor(cfg.id, dark),
                 "circle-opacity": 0.7,
                 "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 2, 10, 5],
               },
@@ -366,8 +368,9 @@ export default function App() {
   }, [ready, plants, overlaps, awarded, styleEpoch]);
 
   // ---- repaint theme-dependent paint properties ----
-  // Layers are only *added* once, so toggling light/dark must re-apply the
-  // halo + awarded-ring colors. Runs after the new style finishes loading.
+  // Layers are only *added* once, so toggling light/dark must re-apply every
+  // theme-dependent color: plant halos, the awarded ring, and all sensitive
+  // layer fills/outlines/dots. Runs after the new style finishes loading.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
@@ -386,6 +389,15 @@ export default function App() {
         "circle-stroke-color",
         dark ? LAYERS.awarded.strokeDark : LAYERS.awarded.stroke
       );
+    }
+    for (const cfg of SENSITIVE_SOURCES) {
+      const c = layerColor(cfg.id, dark);
+      if (map.getLayer(cfg.id)) {
+        map.setPaintProperty(cfg.id, cfg.type === "polygon" ? "fill-color" : "circle-color", c);
+      }
+      if (map.getLayer(`${cfg.id}-outline`)) {
+        map.setPaintProperty(`${cfg.id}-outline`, "line-color", c);
+      }
     }
   }, [dark, ready, styleEpoch]);
 
@@ -545,6 +557,7 @@ export default function App() {
           selected={selected}
           overlaps={overlaps}
           onClose={() => setSelected(null)}
+          dark={dark}
         />
         {showList && (
           <OverlapsList
@@ -566,6 +579,7 @@ export default function App() {
           awarded={awarded}
           filteredIdx={filteredIdx}
           filters={filters}
+          dark={dark}
           dataError={dataError}
           onClose={() => setShowAnalysis(false)}
           onSelect={(i) => {

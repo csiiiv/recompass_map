@@ -1,4 +1,4 @@
-import { LAYERS } from "./constants.js";
+import { LAYERS, layerColor } from "./constants.js";
 
 function Row({ k, v }) {
   if (v == null || v === "") return null;
@@ -10,7 +10,7 @@ function Row({ k, v }) {
   );
 }
 
-export default function DetailPanel({ plant, selected, overlaps, onClose }) {
+export default function DetailPanel({ plant, selected, overlaps, onClose, dark = false }) {
   if (selected == null || !plant) return null;
   const p = plant.properties;
   const hits = (overlaps && overlaps[String(selected)]) || [];
@@ -64,7 +64,7 @@ export default function DetailPanel({ plant, selected, overlaps, onClose }) {
               <div className="hit-layer">
                 <span
                   className="swatch"
-                  style={{ background: LAYERS[layer]?.color || "#888" }}
+                  style={{ background: layerColor(layer, dark) || "#888" }}
                 />
                 {LAYERS[layer]?.label || layer}
               </div>

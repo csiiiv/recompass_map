@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { fuelColor, ISLAND_OPTIONS, LAYERS } from "./constants.js";
+import { fuelColor, ISLAND_OPTIONS, LAYERS, layerColor } from "./constants.js";
 import {
   downloadAnalysisCSV, groupPlants, layerSummary, number, percent,
   plantRows, solarSummary, summarize,
@@ -92,7 +92,7 @@ function EnergyMix({ rows, stats, metric, setMetric, scope }) {
   );
 }
 
-function SensitiveAreas({ rows, stats, provinces, scope, onSelect }) {
+function SensitiveAreas({ rows, stats, provinces, scope, onSelect, dark }) {
   const [province, setProvince] = useState("all");
   const activeProvince = provinces.some((row) => row.name === province) ? province : "all";
   const ranking = [...provinces].sort((a, b) => b.flagged - a.flagged || b.count - a.count || a.name.localeCompare(b.name));
@@ -108,7 +108,7 @@ function SensitiveAreas({ rows, stats, provinces, scope, onSelect }) {
         <Metric label="Multiple layers" value={number(stats.multiLayer)} note="Layers may describe the same sensitive place" />
       </div>
       <Card title="Screening by sensitive layer" subtitle="Inside and proximity-only counts are mutually exclusive within each row. Plants can appear in several rows.">
-        <div className="analysis-table-wrap"><table className="analysis-table"><thead><tr><th>Layer</th><th>Inside</th><th>Proximity only</th><th>Unique plants</th><th>Share of view</th></tr></thead><tbody>{layerSummary(rows).map((r) => <tr key={r.id}><th scope="row"><span className="dot" style={{ background: LAYERS[r.id].color }} /> {LAYERS[r.id].label}</th><td>{number(r.inside)}</td><td>{number(r.nearOnly)}</td><td>{number(r.count)}</td><td>{percent(r.count, stats.count)}</td></tr>)}</tbody></table></div>
+        <div className="analysis-table-wrap"><table className="analysis-table"><thead><tr><th>Layer</th><th>Inside</th><th>Proximity only</th><th>Unique plants</th><th>Share of view</th></tr></thead><tbody>{layerSummary(rows).map((r) => <tr key={r.id}><th scope="row"><span className="dot" style={{ background: layerColor(r.id, dark) }} /> {LAYERS[r.id].label}</th><td>{number(r.inside)}</td><td>{number(r.nearOnly)}</td><td>{number(r.count)}</td><td>{percent(r.count, stats.count)}</td></tr>)}</tbody></table></div>
       </Card>
       <Card title="Provinces for closer review" subtitle="Top 10 by flagged plant count. Counts reflect the inventory, not province-wide risk or impact." action={<button className="btn ghost" onClick={() => downloadAnalysisCSV("re_compass_province_screening.csv", ["Province", "Plants", "Flagged plants", "Inside", "Proximity only", "Multiple layers"], ranking.map((r) => [r.name, r.count, r.flagged, r.inside, r.nearOnly, r.multiLayer]), scope)}>Download all provinces</button>}>
         <div className="analysis-table-wrap"><table className="analysis-table"><thead><tr><th>Province</th><th>Plants</th><th>Flagged</th><th>Flagged share</th><th>Multiple layers</th></tr></thead><tbody>{ranking.slice(0, 10).map((r) => <tr key={r.name}><th scope="row"><button className="analysis-text-btn" onClick={() => setProvince(r.name)}>{r.name}</button></th><td>{number(r.count)}</td><td>{number(r.flagged)}</td><td>{percent(r.flagged, r.count)}</td><td>{number(r.multiLayer)}</td></tr>)}</tbody></table></div>
@@ -186,7 +186,7 @@ function Methods() {
   );
 }
 
-export default function AnalysisModal({ plants, overlaps, awarded, filteredIdx, filters, dataError, onClose, onSelect }) {
+export default function AnalysisModal({ plants, overlaps, awarded, filteredIdx, filters, dark, dataError, onClose, onSelect }) {
   const dialogRef = useRef(null);
   const contentRef = useRef(null);
   const [tab, setTab] = useState("home");
@@ -236,7 +236,7 @@ export default function AnalysisModal({ plants, overlaps, awarded, filteredIdx, 
             {plantTab && !rows.length ? <div className="analysis-empty"><h3>No plants match this scope</h3><p>Choose all inventory plants, turn off renewables only, or adjust your map filters.</p></div> : <>
               {tab === "home" && <Home stats={stats} technologies={groupPlants(rows, "fuel")} provinces={provinces} onTab={setTab} />}
               {tab === "mix" && <EnergyMix rows={rows} stats={stats} metric={metric} setMetric={setMetric} scope={scope} />}
-              {tab === "sensitive" && <SensitiveAreas rows={rows} stats={stats} provinces={provinces} scope={scope} onSelect={onSelect} />}
+              {tab === "sensitive" && <SensitiveAreas rows={rows} stats={stats} provinces={provinces} scope={scope} onSelect={onSelect} dark={dark} />}
             </>}
             {tab === "solar" && <SolarPipeline awarded={awarded} />}
             {tab === "methods" && <Methods />}

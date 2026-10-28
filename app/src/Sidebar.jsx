@@ -1,4 +1,4 @@
-import { LAYERS, FUEL_ORDER, STATUS_OPTIONS, ISLAND_OPTIONS, fuelColor } from "./constants.js";
+import { LAYERS, FUEL_ORDER, STATUS_OPTIONS, ISLAND_OPTIONS, fuelColor, layerColor } from "./constants.js";
 
 export default function Sidebar({
   className = "",
@@ -120,12 +120,14 @@ export default function Sidebar({
                       ? {
                           // hollow ring, matching the map rendering
                           background: "transparent",
-                          border: `2.5px solid ${cfg.stroke}`,
+                          border: `2.5px solid ${dark ? cfg.strokeDark : cfg.stroke}`,
                           borderRadius: "50%",
                         }
                       : {
                           background:
-                            id === "plants" || cfg.pending ? "transparent" : cfg.color,
+                            id === "plants" || cfg.pending
+                              ? "transparent"
+                              : layerColor(id, dark),
                           border:
                             id === "plants"
                               ? "2px solid var(--muted)"
