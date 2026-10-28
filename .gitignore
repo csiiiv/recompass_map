@@ -1,16 +1,12 @@
-# data
-data_sources/*.zip
-data_sources/*.pdf
-data_sources/*.xlsx
-data_sources/*.geojson
-
 # deps
 node_modules/
 
 # build
 app/dist/
 
-# misc
+# tooling artifacts
+app/measure.mjs
 .DS_Store
 *.log
 .venv/
+__pycache__/

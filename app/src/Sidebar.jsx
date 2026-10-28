@@ -1,4 +1,4 @@
-import { FUEL_ORDER, STATUS_OPTIONS, ISLAND_OPTIONS, fuelColor } from "./constants.js";
+import { LAYERS, FUEL_ORDER, STATUS_OPTIONS, ISLAND_OPTIONS, fuelColor } from "./constants.js";
 
 export default function Sidebar({
   className = "",

@@ -1,32 +1,17 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { Popup as MapLibrePopup } from "maplibre-gl";
 import { createMap, basemapStyle } from "./maplibre.js";
-import { fuelColor } from "./constants.js";
+import { fuelColor, LAYERS } from "./constants.js";
 import DetailPanel from "./DetailPanel.jsx";
 import Sidebar from "./Sidebar.jsx";
 import OverlapsList from "./OverlapsList.jsx";
 import HelpNote from "./HelpNote.jsx";
 
 const SENSITIVE_SOURCES = [
-  {
-    id: "protected_areas",
-    file: "data/protected_areas.geojson",
-    type: "polygon",
-    color: "#10b981",
-  },
-  {
-    id: "kba",
-    file: "data/kba.geojson",
-    type: "polygon",
-    color: "#84cc16",
-  },
-  {
-    id: "land_deals",
-    file: "data/land_deals.geojson",
-    type: "polygon",
-    color: "#a855f7",
-  },
-  { id: "mpa", file: "data/mpa.geojson", type: "point", color: "#06b6d4" },
+  { id: "protected_areas", file: "data/protected_areas.geojson", type: "polygon" },
+  { id: "kba", file: "data/kba.geojson", type: "polygon" },
+  { id: "land_deals", file: "data/land_deals.geojson", type: "polygon" },
+  { id: "mpa", file: "data/mpa.geojson", type: "point" },
 ];
 
 const norm = (s) =>
@@ -268,7 +253,7 @@ export default function App() {
       });
     }
 
-    // awarded contracts layer (square-ish diamonds, amber)
+    // awarded contracts layer (yellow dots, dark stroke — distinct from solar amber)
     if (!map.getSource("awarded") && awarded) {
       const feats = awarded.filter((f) => f.geometry);
       map.addSource("awarded", {
@@ -280,7 +265,7 @@ export default function App() {
         type: "circle",
         source: "awarded",
         paint: {
-          "circle-color": "#facc15",
+          "circle-color": LAYERS.awarded.color,
           "circle-opacity": 0.85,
           "circle-radius": [
             "interpolate",
@@ -291,7 +276,7 @@ export default function App() {
             10,
             ["case", [">", ["get", "potential_mw"], 100], 10, 6],
           ],
-          "circle-stroke-color": "#a16207",
+          "circle-stroke-color": LAYERS.awarded.stroke,
           "circle-stroke-width": 1,
         },
       });
@@ -331,14 +316,14 @@ export default function App() {
               id: cfg.id,
               type: "fill",
               source: cfg.id,
-              paint: { "fill-color": cfg.color, "fill-opacity": 0.12 },
+              paint: { "fill-color": LAYERS[cfg.id].color, "fill-opacity": 0.12 },
             });
             map.addLayer({
               id: `${cfg.id}-outline`,
               type: "line",
               source: cfg.id,
               paint: {
-                "line-color": cfg.color,
+                "line-color": LAYERS[cfg.id].color,
                 "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.6, 10, 1.6],
                 "line-opacity": 0.7,
               },
@@ -349,7 +334,7 @@ export default function App() {
               type: "circle",
               source: cfg.id,
               paint: {
-                "circle-color": cfg.color,
+                "circle-color": LAYERS[cfg.id].color,
                 "circle-opacity": 0.7,
                 "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 2, 10, 5],
               },
