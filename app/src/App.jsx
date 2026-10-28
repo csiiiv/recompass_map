@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { Popup as MapLibrePopup } from "maplibre-gl";
 import { createMap, basemapStyle } from "./maplibre.js";
-import { fuelColor, LAYERS } from "./constants.js";
+import { fuelColor, LAYERS, HALO, FLAG_COLOR } from "./constants.js";
 import DetailPanel from "./DetailPanel.jsx";
 import Sidebar from "./Sidebar.jsx";
 import OverlapsList from "./OverlapsList.jsx";
 import HelpNote from "./HelpNote.jsx";
+import AnalysisModal from "./AnalysisModal.jsx";
 
 const SENSITIVE_SOURCES = [
   { id: "protected_areas", file: "data/protected_areas.geojson", type: "polygon" },
   { id: "kba", file: "data/kba.geojson", type: "polygon" },
   { id: "land_deals", file: "data/land_deals.geojson", type: "polygon" },
   { id: "mpa", file: "data/mpa.geojson", type: "point" },
+  { id: "land_deal_sites", file: "data/land_deal_sites.geojson", type: "point" },
 ];
 
 const norm = (s) =>
@@ -33,6 +35,7 @@ export default function App() {
   const [overlaps, setOverlaps] = useState(null);
   const [awarded, setAwarded] = useState(null);
   const [awardedStats, setAwardedStats] = useState(null);
+  const [dataError, setDataError] = useState(false);
   const [selected, setSelected] = useState(null); // plant index
   const [visible, setVisible] = useState({
     plants: true,
@@ -41,6 +44,7 @@ export default function App() {
     kba: false,
     mpa: false,
     land_deals: false,
+    land_deal_sites: false,
     ancestral_domains: false,
     municipal_waters: false,
   });
@@ -51,6 +55,7 @@ export default function App() {
     island: "all",
   });
   const [showList, setShowList] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
   const [sideOpen, setSideOpen] = useState(
     typeof window === "undefined" || window.innerWidth > 900
   );
@@ -137,7 +142,9 @@ export default function App() {
         mapped,
         unmapped: a.features.length - mapped,
       });
-    })();
+    })().catch(() => {
+      if (!cancelled) setDataError(true);
+    });
     return () => {
       cancelled = true;
     };
@@ -153,6 +160,10 @@ export default function App() {
   }, []);
 
   // ---- theme switch ----
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+  }, [dark]);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
@@ -216,14 +227,17 @@ export default function App() {
             10,
             ["case", [">", ["get", "cap"], 100], 12, 8],
           ],
+          // Theme-aware halo: charcoal framing on light basemaps, near-white on
+          // dark ones. This is what keeps Coal (#33383f) and Oil-Based (#7c8798)
+          // legible on both themes without forcing mid-tone palette colors.
           "circle-stroke-color": [
             "case",
             ["==", ["get", "flagged"], true],
-            "#dc2626",
-            "#ffffff",
+            FLAG_COLOR,
+            dark ? HALO.dark : HALO.light,
           ],
-          "circle-stroke-width": ["case", ["==", ["get", "flagged"], true], 2, 1],
-          "circle-stroke-opacity": 0.9,
+          "circle-stroke-width": ["case", ["==", ["get", "flagged"], true], 2, 1.5],
+          "circle-stroke-opacity": 0.95,
         },
       });
 
@@ -253,7 +267,8 @@ export default function App() {
       });
     }
 
-    // awarded contracts layer (yellow dots, dark stroke — distinct from solar amber)
+    // awarded contracts: HOLLOW rings (no fill, thick dark-amber stroke) —
+    // unmistakably distinct from solid solar dots even at the same location
     if (!map.getSource("awarded") && awarded) {
       const feats = awarded.filter((f) => f.geometry);
       map.addSource("awarded", {
@@ -265,19 +280,19 @@ export default function App() {
         type: "circle",
         source: "awarded",
         paint: {
-          "circle-color": LAYERS.awarded.color,
-          "circle-opacity": 0.85,
+          "circle-opacity": 0,
           "circle-radius": [
             "interpolate",
             ["linear"],
             ["zoom"],
             5,
-            ["case", [">", ["get", "potential_mw"], 100], 4.5, 2.5],
+            ["case", [">", ["get", "potential_mw"], 100], 6, 4],
             10,
-            ["case", [">", ["get", "potential_mw"], 100], 10, 6],
+            ["case", [">", ["get", "potential_mw"], 100], 12, 8],
           ],
-          "circle-stroke-color": LAYERS.awarded.stroke,
-          "circle-stroke-width": 1,
+          "circle-stroke-color": dark ? LAYERS.awarded.strokeDark : LAYERS.awarded.stroke,
+          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 5, 1.5, 10, 2.5],
+          "circle-stroke-opacity": 0.9,
         },
       });
       const popup = tooltipRef.current;
@@ -349,6 +364,30 @@ export default function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, plants, overlaps, awarded, styleEpoch]);
+
+  // ---- repaint theme-dependent paint properties ----
+  // Layers are only *added* once, so toggling light/dark must re-apply the
+  // halo + awarded-ring colors. Runs after the new style finishes loading.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const halo = dark ? HALO.dark : HALO.light;
+    if (map.getLayer("plants")) {
+      map.setPaintProperty("plants", "circle-stroke-color", [
+        "case",
+        ["==", ["get", "flagged"], true],
+        FLAG_COLOR,
+        halo,
+      ]);
+    }
+    if (map.getLayer("awarded")) {
+      map.setPaintProperty(
+        "awarded",
+        "circle-stroke-color",
+        dark ? LAYERS.awarded.strokeDark : LAYERS.awarded.stroke
+      );
+    }
+  }, [dark, ready, styleEpoch]);
 
   // ---- filtering ----
   const filteredIdx = useMemo(() => {
@@ -457,6 +496,7 @@ export default function App() {
     counts.kba = fromOverlaps("kba");
     counts.mpa = fromOverlaps("mpa");
     counts.land_deals = fromOverlaps("land_deals");
+    counts.land_deal_sites = fromOverlaps("land_deal_sites");
     return counts;
   }, [plants, overlaps, awardedStats]);
 
@@ -486,6 +526,19 @@ export default function App() {
           {sideOpen ? "◀" : "☰"}
         </button>
         <div ref={mapContainer} className="map" />
+        <button
+          className="btn analysis-launch"
+          aria-haspopup="dialog"
+          onClick={() => {
+            setShowList(false);
+            setShowAnalysis(true);
+          }}
+        >
+          <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+            <path d="M3 3v14h14M7 13V9m4 4V5m4 8V7" />
+          </svg>
+          Analysis
+        </button>
         <HelpNote />
         <DetailPanel
           plant={selected != null && plants ? plants[selected] : null}
@@ -506,6 +559,21 @@ export default function App() {
           />
         )}
       </main>
+      {showAnalysis && (
+        <AnalysisModal
+          plants={plants}
+          overlaps={overlaps}
+          awarded={awarded}
+          filteredIdx={filteredIdx}
+          filters={filters}
+          dataError={dataError}
+          onClose={() => setShowAnalysis(false)}
+          onSelect={(i) => {
+            setSelected(i);
+            setShowAnalysis(false);
+          }}
+        />
+      )}
     </div>
   );
 }

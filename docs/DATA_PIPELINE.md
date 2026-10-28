@@ -14,7 +14,8 @@ WDPA zip                        → 02_process_sensitive.py      →   protected
 Philippines_KBA.zip             →   "                          →   kba.geojson (137)
 marineprotectedareas.zip        →   "                          →   mpa.geojson (339)
 areas.geojson (Land Matrix)     →   "                          →   land_deals.geojson (145)
-                                    03_overlaps.py             →   overlaps.json (128 plants flagged)
+locations.geojson (Land Matrix) → 08_land_locations.py        →   land_deal_sites.geojson (60 pts)
+                                    03_overlaps.py             →   overlaps.json (129 plants flagged)
                                     05_simplify.py             →   (in-place, ~10x size cut)
 (a) SUMMARY ... May 2026.pdf     → 06_extract_awarded.py       →   awarded_projects.geojson (497)
 plants.geojson                  → 07_gazetteer.py             →   gazetteer.json (139 muni / 59 prov)
@@ -44,6 +45,16 @@ Shapefile → GeoJSON with pyshp (no GDAL needed):
 - Land Matrix: passed through as-is.
 - Polygons keep ring structure as MultiPolygon-of-single-ring (adequate for
   fill rendering and point-in-polygon flagging).
+
+### `08_land_locations.py`
+`locations.geojson` complements `areas.geojson`: every deal in the latter also
+has points, but 210 deals exist **only** as points. One pin per polygon-less
+deal is kept at the best available accuracy:
+- `EXACT_LOCATION`/`COORDINATES` (26) → display **and** overlap test;
+- `APPROXIMATE_LOCATION` (34) → display only;
+- `ADMINISTRATIVE_REGION`/`COUNTRY` centroids (228) → dropped entirely —
+  province/island centroids would falsely flag every nearby plant in the
+  5 km overlap analysis.
 
 ### `03_overlaps.py`
 For each plant point vs each sensitive feature:
@@ -91,6 +102,7 @@ Municipal waters (polygon shapefile) or ancestral domains:
 ```bash
 python3 scripts/01_process_plants.py
 python3 scripts/02_process_sensitive.py
+python3 scripts/08_land_locations.py
 python3 scripts/03_overlaps.py          # BEFORE simplify (full-detail distances)
 python3 scripts/05_simplify.py
 python3 scripts/06_extract_awarded.py

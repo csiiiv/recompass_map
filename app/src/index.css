@@ -11,6 +11,7 @@
   --danger: #b91c1c;
   --danger-bg: #fee2e2;
   --chip: #eef1f4;
+  --dot-ring: rgba(0, 0, 0, 0.35);
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.06);
   font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
@@ -28,6 +29,7 @@ html.dark {
   --danger: #f87171;
   --danger-bg: #3b1515;
   --chip: #232933;
+  --dot-ring: rgba(255, 255, 255, 0.45);
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 

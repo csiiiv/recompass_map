@@ -13,6 +13,7 @@ All files live in `data_sources/` and are committed to the repo (total < 30 MB).
 | `Philippines_KBA.zip` | Key Biodiversity Areas | KBA Partnership | 2025 | 1.3 MB |
 | `marineprotectedareas.zip` | Marine protected areas (points) | UP-MSI (via Forum for the Future) | 2013 | 39 KB |
 | `areas.geojson` | Large-scale land deal areas | Land Matrix | 2026 export | 4.8 MB |
+| `locations.geojson` | Land deal location points (complements `areas.geojson`) | Land Matrix | 2026 export | 205 KB |
 
 ## Provenance & licenses
 

@@ -115,17 +115,26 @@ export default function Sidebar({
                 />
                 <span
                   className="swatch"
-                  style={{
-                    background:
-                      id === "plants" || cfg.pending ? "transparent" : cfg.color,
-                    border:
-                      id === "plants"
-                        ? "2px solid var(--muted)"
-                        : cfg.pending
-                          ? "2px dashed currentColor"
-                          : "none",
-                    borderRadius: id === "plants" ? "50%" : "2px",
-                  }}
+                  style={
+                    id === "awarded"
+                      ? {
+                          // hollow ring, matching the map rendering
+                          background: "transparent",
+                          border: `2.5px solid ${cfg.stroke}`,
+                          borderRadius: "50%",
+                        }
+                      : {
+                          background:
+                            id === "plants" || cfg.pending ? "transparent" : cfg.color,
+                          border:
+                            id === "plants"
+                              ? "2px solid var(--muted)"
+                              : cfg.pending
+                                ? "2px dashed currentColor"
+                                : "none",
+                          borderRadius: id === "plants" ? "50%" : "2px",
+                        }
+                  }
                 />
                 <span className="layer-name">{cfg.label}</span>
                 {layerCounts[id] != null && (

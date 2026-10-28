@@ -21,6 +21,11 @@ areas, and large-scale land deals in the Philippines.**
   land deals (2026).
 - **2 pending layers shown as unavailable**: ancestral domains (NCIP CADT/CALT)
   and municipal waters (15 km, UP-MSI) — data-sharing pending.
+- **Analysis window** (upper right): Home briefing, energy mix, sensitive-area
+  screening and province review, awarded solar pipeline, and data/methods.
+  Filter-aware inventory summaries, a renewables-only option, independent
+  solar filtering, and CSV downloads. Contract estimates stay separate from
+  the plant inventory and are not screened for overlaps.
 - **Overlap flags**: a plant is flagged when it sits inside or within 5 km of
   any sensitive layer (screening signal, not an assessment).
 - **Overlaps table** with CSV download; hover tooltips; shareable URLs

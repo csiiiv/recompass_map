@@ -163,6 +163,16 @@ def main():
         "kba": (json.loads((DATA / "kba.geojson").read_text())["features"], ["IntName", "NatName"]),
         "mpa": (json.loads((DATA / "mpa.geojson").read_text())["features"], ["NAME", "SITE_CODE"]),
         "land_deals": (json.loads((DATA / "land_deals.geojson").read_text())["features"], ["name", "facility_name"]),
+        # precise location pins for deals that have no polygon; approximate
+        # ones are display-only (see scripts/08_land_locations.py)
+        "land_deal_sites": (
+            [
+                f
+                for f in json.loads((DATA / "land_deal_sites.geojson").read_text())["features"]
+                if f["properties"].get("precise")
+            ],
+            ["name", "facility_name"],
+        ),
     }
 
     all_overlaps = {pi: [] for pi in range(len(plants))}

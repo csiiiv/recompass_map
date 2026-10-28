@@ -271,6 +271,7 @@
   border-radius: 3px;
   flex: none;
   display: inline-block;
+  box-shadow: 0 0 0 1px var(--dot-ring);
 }
 
 /* legend */
@@ -317,6 +318,9 @@
   border-radius: 50%;
   display: inline-block;
   flex: none;
+  /* theme-aware ring: keeps dark fills (coal, hydro, biomass) legible
+     against the dark panel, and light fills legible against the light one */
+  box-shadow: 0 0 0 1px var(--dot-ring);
 }
 
 /* footer */

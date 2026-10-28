@@ -23,6 +23,10 @@ src/
 ├── Sidebar.jsx       # search, filters, layer toggles+badges, legend, stats
 ├── DetailPanel.jsx   # plant details + grouped overlap hits
 ├── OverlapsList.jsx  # modal table + CSV export
+├── AnalysisModal.jsx # native dialog, tabbed briefing and analysis views
+├── analysis.js       # pure aggregation, scope rules, summary CSV exports
+├── analysis.test.js  # counting, filtering, and source reconciliation tests
+├── analysis.css      # responsive analysis dialog and charts
 ├── HelpNote.jsx      # in-app "how to read" toggle card
 ├── index.css         # CSS vars (light/dark), reset, #root sizing
 └── styles.css        # component styles + responsive rules
@@ -72,6 +76,36 @@ MapLibre itself always receives valid JSON.
 - `selected` (plant index) → URL `?plant=`, flyTo, DetailPanel.
 - Pending layers (`ancestral_domains`, `municipal_waters`) are excluded from
   visibility handling — they have no data yet and render as disabled toggles.
+
+## Analysis window
+
+The upper-right Analysis button opens a native modal `dialog` above the
+whole app. Native modality handles background interaction and focus trapping;
+Escape, Close, and backdrop clicks dismiss it. Tabs support arrow, Home,
+and End keys. Selecting a review-list plant closes the dialog and uses the
+existing selection/detail workflow. The detail panel sits below the button.
+
+Analysis reuses loaded data without additional network requests. Its initial
+scope follows `filteredIdx`, with options for all inventory plants and a
+renewables-only subset (solar, wind, hydro, geothermal, biomass; excludes BESS).
+Map bounds and layer visibility do not affect analysis. Aggregation retains
+original plant indices for overlap lookup. Counts deduplicate hits by plant
+and layer; inside takes precedence over proximity in each partition. MW
+sums include only positive finite source values, while missing MW records
+remain in counts. Mixed statuses remain a separate group.
+
+Awarded solar contracts have an independent island filter and include unmapped
+records. Potential MW and installed MW remain separate; commercial-operation
+records are identified rather than presented as future build-out. Multi-province
+source labels remain intact. There is no overlap screening of centroids and
+no joining or adding contracts to plant totals. Province exports contain all
+groups, while the overview tables show the top ten. Exports include scope and
+escape spreadsheet formula prefixes in source text.
+
+Run `cd app && npm test` for synthetic edge cases and reconciliation against
+the shipped plant inventory. `npm run build` and `npm run lint` validate the
+frontend. Browser checks should cover tab navigation, scope changes, empty
+results, CSV export, plant selection, mobile sizing, and both themes.
 
 ## Performance
 
