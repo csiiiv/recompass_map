@@ -1,0 +1,58 @@
+:root {
+  --bg: #f7f8fa;
+  --panel: #ffffff;
+  --border: #e3e6ea;
+  --text: #1a1d21;
+  --muted: #5f6672;
+  --accent: #0e7490;
+  --accent-soft: #e0f2f7;
+  --flag: #b45309;
+  --flag-bg: #fef3c7;
+  --danger: #b91c1c;
+  --danger-bg: #fee2e2;
+  --chip: #eef1f4;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.06);
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+html.dark {
+  --bg: #0f1216;
+  --panel: #171b21;
+  --border: #2a303a;
+  --text: #e8eaed;
+  --muted: #9aa3af;
+  --accent: #38bdf8;
+  --accent-soft: #0c2a35;
+  --flag: #fbbf24;
+  --flag-bg: #3a2e10;
+  --danger: #f87171;
+  --danger-bg: #3b1515;
+  --chip: #232933;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh; /* fallback */
+  height: 100dvh; /* dynamic viewport: mobile browser chrome show/hide */
+  overflow: hidden;
+}
