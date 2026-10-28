@@ -14,6 +14,8 @@ All files live in `data_sources/` and are committed to the repo (total < 30 MB).
 | `marineprotectedareas.zip` | Marine protected areas (points) | UP-MSI (via Forum for the Future) | 2013 | 39 KB |
 | `areas.geojson` | Large-scale land deal areas | Land Matrix | 2026 export | 4.8 MB |
 | `locations.geojson` | Land deal location points (complements `areas.geojson`) | Land Matrix | 2026 export | 205 KB |
+| `deals.json` | Land deal attributes (investors, sizes, status) | Land Matrix API (`/api/deals/`) | 2026 export | 399 KB |
+| `deal_details.json` | Per-deal details: location names/descriptions, contracts, data sources | Land Matrix API (`/api/deals/<id>/`), via `scripts/09_deal_details.py` | 2026 fetch | ~1 MB |
 
 ## Provenance & licenses
 
@@ -55,6 +57,17 @@ All files live in `data_sources/` and are committed to the repo (total < 30 MB).
   145 polygons with deal IDs, facility names, accuracy levels.
 - **Interpretation**: a polygon is the deal's claimed area, not a project
   footprint; overlap means the plant point falls inside a deal area.
+- `deals.json` (API list export) adds deal-level attributes for all 325
+  deals: operating company, top investors, intention of investment (108
+  energy-related: 52 solar park, 37 biofuels, 9 wind farm, 7 renewable
+  energy, 3 biomass), deal/contract/intended sizes, negotiation and
+  implementation status.
+- `deal_details.json` (per-deal API fetch, `scripts/09_deal_details.py`)
+  adds location details (name, description, facility name), contracts
+  (number, dates), and data sources (publication titles, URLs) — the
+  per-deal content shown on landmatrix.org deal pages. Resumable; re-run
+  after re-exporting `deals.json`. Polygons are not re-fetched
+  (`areas.geojson` already has them).
 
 ## Geocoding (awarded contracts)
 

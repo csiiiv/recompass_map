@@ -65,6 +65,8 @@ python3 scripts/03_overlaps.py             # 5 km overlap flags -> overlaps.json
 python3 scripts/05_simplify.py             # polygon simplification (~10x smaller)
 python3 scripts/06_extract_awarded.py      # awarded contracts PDF -> geojson (497)
 python3 scripts/07_gazetteer.py            # municipality centroids for geocoding
+python3 scripts/09_deal_details.py         # Land Matrix per-deal API -> contracts,
+                                           # data sources, location details
 ```
 
 Run 01→02→03 for core layers; 05 shrinks polygons for fast loads; 06→07 add
@@ -80,6 +82,7 @@ the awarded-contracts layer. Full details: [`docs/DATA_PIPELINE.md`](docs/DATA_P
 | Key Biodiversity Areas | `Philippines_KBA.zip` | 2025 | Shapefile |
 | Marine protected areas | `marineprotectedareas.zip` | 2013 | Shapefile (points) |
 | Land deals | `areas.geojson` (Land Matrix export) | 2026 | GeoJSON |
+| Land deal attributes | `deals.json` + `deal_details.json` (Land Matrix API) | 2026 | JSON (per-deal investors, contracts, data sources) |
 
 All layers are public data. See [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md)
 for provenance, licenses, and known quality issues per layer.

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { Popup as MapLibrePopup } from "maplibre-gl";
-import { createMap, basemapStyle } from "./maplibre.js";
+import { createMap, switchBasemap } from "./maplibre.js";
 import { fuelColor, LAYERS, HALO, FLAG_COLOR, layerColor } from "./constants.js";
 import DetailPanel from "./DetailPanel.jsx";
 import Sidebar from "./Sidebar.jsx";
@@ -167,7 +167,7 @@ export default function App() {
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
-    map.setStyle(basemapStyle(dark));
+    switchBasemap(map, dark);
     const onStyleLoad = () => {
       setStyleEpoch((k) => k + 1);
       map.off("styledata", onStyleLoad);

@@ -20,6 +20,40 @@ export function basemapStyle(dark) {
   return dark ? CARTO_DARK : CARTO_LIGHT;
 }
 
+// Custom sources/layers that must survive a basemap switch.
+const PERSISTENT_SOURCES = new Set([
+  "plants",
+  "awarded",
+  "protected_areas",
+  "kba",
+  "mpa",
+  "land_deals",
+  "land_deal_sites",
+]);
+
+// Switch basemap while carrying our overlay layers over atomically
+// (setStyle + transformStyle), so no remove/re-add race can drop them.
+export function switchBasemap(map, dark) {
+  map.setStyle(basemapStyle(dark), {
+    transformStyle: (previousStyle, nextStyle) => {
+      if (!previousStyle) return nextStyle;
+      const sources = { ...nextStyle.sources };
+      const layers = [...nextStyle.layers];
+      const known = new Set(layers.map((l) => l.id));
+      for (const layer of previousStyle.layers) {
+        if (PERSISTENT_SOURCES.has(layer.source) && !known.has(layer.id)) {
+          layers.push(layer);
+          known.add(layer.id);
+        }
+      }
+      for (const id of Object.keys(previousStyle.sources)) {
+        if (PERSISTENT_SOURCES.has(id)) sources[id] = previousStyle.sources[id];
+      }
+      return { ...nextStyle, sources, layers };
+    },
+  });
+}
+
 export function createMap(container, dark) {
   const map = new MapLibreMap({
     container,

@@ -15,6 +15,7 @@ Philippines_KBA.zip             →   "                          →   kba.geojs
 marineprotectedareas.zip        →   "                          →   mpa.geojson (339)
 areas.geojson (Land Matrix)     →   "                          →   land_deals.geojson (145)
 locations.geojson (Land Matrix) → 08_land_locations.py        →   land_deal_sites.geojson (60 pts)
+deals.json (Land Matrix)        → 09_deal_details.py (API)    →   deal_details.json (325 deals)
                                     03_overlaps.py             →   overlaps.json (129 plants flagged)
                                     05_simplify.py             →   (in-place, ~10x size cut)
 (a) SUMMARY ... May 2026.pdf     → 06_extract_awarded.py       →   awarded_projects.geojson (497)
@@ -55,6 +56,23 @@ deal is kept at the best available accuracy:
 - `ADMINISTRATIVE_REGION`/`COUNTRY` centroids (228) → dropped entirely —
   province/island centroids would falsely flag every nearby plant in the
   5 km overlap analysis.
+
+### `09_deal_details.py`
+Fetches `https://landmatrix.org/api/deals/<id>/` for every deal in
+`deals.json` and writes a slim extract to `data_sources/deal_details.json`
+keyed by deal id:
+- location details: `name`, `description`, `facility_name` per location nid
+  (the list endpoint / `deals.json` only has `{nid, point, accuracy}`);
+- `contracts` (number, date, expiration, duration);
+- `datasources` (type, publication title, date, URL, comment);
+- `project_name`, `nature_of_deal`.
+Networked (unlike the rest of the pipeline): 0.4 s politeness delay,
+retries with backoff, crash-resumable via checkpoints (re-run skips
+already-fetched deals; `--refresh` forces re-fetch; `--limit N` for
+testing). Polygons are not stored — `areas.geojson` already has them where
+they exist. Location names/descriptions were verified to match
+`locations.geojson` exactly, so `09` is a provenance/enrichment source,
+not a geometry source.
 
 ### `03_overlaps.py`
 For each plant point vs each sensitive feature:
@@ -107,6 +125,7 @@ python3 scripts/03_overlaps.py          # BEFORE simplify (full-detail distances
 python3 scripts/05_simplify.py
 python3 scripts/06_extract_awarded.py
 python3 scripts/07_gazetteer.py
+python3 scripts/09_deal_details.py      # networked; resumable (skips cached deals)
 ```
 
 Commit; GitHub Actions rebuilds and redeploys Pages automatically.
