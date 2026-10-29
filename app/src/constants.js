@@ -96,6 +96,69 @@ export function layerColor(id, dark = false) {
   return (dark ? cfg.colorDark : cfg.color) || cfg.color;
 }
 
+// ---- Land Matrix deal lookups (land_deal_info.json) ----
+// Short enum codes from the Land Matrix API, expanded for display.
+
+export const INTENTIONS = {
+  FOOD_CROPS: "Food crops",
+  NON_FOOD_AGRICULTURE: "Non-food agriculture",
+  AGRICULTURE_UNSPECIFIED: "Agriculture (unspecified)",
+  LIVESTOCK: "Livestock",
+  BIOFUELS: "Biofuels",
+  FORESTRY_UNSPECIFIED: "Forestry (unspecified)",
+  CARBON: "Carbon",
+  MINING: "Mining",
+  TOURISM: "Tourism",
+  INDUSTRY: "Industry",
+  CONVERSATION: "Conservation",
+  LAND_SPECULATION: "Land speculation",
+  SOLAR_PARK: "Solar park",
+  WIND_FARM: "Wind farm",
+  BIOMASS_ENERGY_GENERATION: "Biomass energy",
+  RENEWABLE_ENERGY: "Renewable energy",
+  OTHER: "Other",
+};
+
+export const NEGOTIATION = {
+  EXPRESSION_OF_INTEREST: "Expression of interest",
+  UNDER_NEGOTIATION: "Under negotiation",
+  MEMORANDUM_OF_UNDERSTANDING: "Memorandum of understanding",
+  ORAL_AGREEMENT: "Oral agreement",
+  CONTRACT_SIGNED: "Contract signed",
+  CONTRACT_EXPIRED: "Contract expired",
+  CONTRACT_CANCELED: "Contract canceled",
+  NEGOTIATIONS_FAILED: "Negotiations failed",
+  CHANGE_OF_OWNERSHIP: "Change of ownership",
+};
+
+export const IMPLEMENTATION = {
+  PROJECT_NOT_STARTED: "Project not started",
+  STARTUP_PHASE: "Startup phase",
+  IN_OPERATION: "In operation",
+  PROJECT_ABANDONED: "Project abandoned",
+  ON_HOLD: "On hold",
+};
+
+export const NATURE = {
+  OUTRIGHT_PURCHASE: "Outright purchase",
+  LEASE: "Lease",
+  CONCESSION: "Concession",
+  EXPLOITATION_PERMIT: "Exploitation permit",
+  PURE_CONTRACT_FARMING: "Contract farming",
+  OTHER: "Other",
+};
+
+export const SOURCE_TYPES = {
+  CONTRACT: "Contract",
+  GOVERNMENT_SOURCES: "Government source",
+  MEDIA_REPORT: "Media report",
+  RESEARCH_PAPER_OR_POLICY_REPORT: "Research / policy report",
+  COMPANY_SOURCES: "Company source",
+  PERSONAL_INFORMATION: "Personal information",
+  CROWDSOURCING: "Crowdsourced",
+  OTHER: "Other",
+};
+
 export const STATUS_OPTIONS = [
   "Operational",
   "Committed",

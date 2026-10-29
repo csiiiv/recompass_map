@@ -28,6 +28,10 @@ areas, and large-scale land deals in the Philippines.**
   the plant inventory and are not screened for overlaps.
 - **Overlap flags**: a plant is flagged when it sits inside or within 5 km of
   any sensitive layer (screening signal, not an assessment).
+- **Land deal details**: clicking a Land Matrix deal polygon or site point
+  opens a popup with operating company, investors, intention, deal size,
+  status, contracts, and linked data sources — the per-deal content from
+  landmatrix.org.
 - **Overlaps table** with CSV download; hover tooltips; shareable URLs
   (`?plant=`, `?fuel=`, `?status=`, `?island=`, `?q=`, `?dark=1`);
   light/dark CARTO basemaps.
@@ -67,6 +71,7 @@ python3 scripts/06_extract_awarded.py      # awarded contracts PDF -> geojson (4
 python3 scripts/07_gazetteer.py            # municipality centroids for geocoding
 python3 scripts/09_deal_details.py         # Land Matrix per-deal API -> contracts,
                                            # data sources, location details
+python3 scripts/10_deal_info.py            # deal info -> web lookup for deal popups
 ```
 
 Run 01→02→03 for core layers; 05 shrinks polygons for fast loads; 06→07 add

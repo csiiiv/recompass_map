@@ -3,6 +3,7 @@ import { Popup as MapLibrePopup } from "maplibre-gl";
 import { createMap, switchBasemap } from "./maplibre.js";
 import { fuelColor, LAYERS, HALO, FLAG_COLOR, layerColor } from "./constants.js";
 import DetailPanel from "./DetailPanel.jsx";
+import DealPopup from "./DealPopup.jsx";
 import Sidebar from "./Sidebar.jsx";
 import OverlapsList from "./OverlapsList.jsx";
 import HelpNote from "./HelpNote.jsx";
@@ -16,6 +17,15 @@ const SENSITIVE_SOURCES = [
   { id: "land_deal_sites", file: "data/land_deal_sites.geojson", type: "point" },
 ];
 
+// Land Matrix deal layers that get hover tooltips + click popups.
+const DEAL_LAYERS = ["land_deals", "land_deal_sites"];
+
+// Escape user-sourceable strings before they go into tooltip HTML.
+const esc = (s) =>
+  String(s ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+
 const norm = (s) =>
   (s || "")
     .trim()
@@ -28,6 +38,7 @@ const norm = (s) =>
 export default function App() {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
+  const dealWiredRef = useRef(null); // map instance with deal handlers wired
   const [dark, setDark] = useState(false);
   const [ready, setReady] = useState(false);
   const [styleEpoch, setStyleEpoch] = useState(0);
@@ -37,6 +48,7 @@ export default function App() {
   const [awardedStats, setAwardedStats] = useState(null);
   const [dataError, setDataError] = useState(false);
   const [selected, setSelected] = useState(null); // plant index
+  const [dealSelected, setDealSelected] = useState(null); // Land Matrix deal_id
   const [visible, setVisible] = useState({
     plants: true,
     awarded: false,
@@ -364,6 +376,57 @@ export default function App() {
           }
         });
     }
+
+    // ---- Land Matrix deal layers: hover tooltip + click popup ----
+    // Handlers are layer-scoped and survive basemap swaps (transformStyle
+    // carries sources+layers across), so wire them once per map instance.
+    // (StrictMode dev double-mount replaces the map — hence instance check.)
+    if (dealWiredRef.current !== map) {
+      dealWiredRef.current = map;
+      const popup = tooltipRef.current;
+      const ACC = {
+        EXACT_LOCATION: "Exact location",
+        COORDINATES: "Coordinates",
+        APPROXIMATE_LOCATION: "Approximate location",
+        ADMINISTRATIVE_REGION: "Administrative region",
+        COUNTRY: "Country level",
+      };
+      for (const layerId of DEAL_LAYERS) {
+        const hint =
+          layerId === "land_deal_sites" ? "site point · " : "";
+        map.on("mouseenter", layerId, (e) => {
+          map.getCanvas().style.cursor = "pointer";
+          const f = e.features[0];
+          const p = f.properties;
+          const parts = [
+            `<strong>${esc(p.name || "Land deal")}</strong>`,
+            hint + (ACC[p.level_of_accuracy] || p.level_of_accuracy || ""),
+          ];
+          if (p.facility_name) parts.push(esc(p.facility_name));
+          parts.push("<i>Click for deal details</i>");
+          popup
+            .setLngLat(e.lngLat)
+            .setHTML(parts.join("<br/>"))
+            .addTo(map);
+        });
+        map.on("mouseleave", layerId, () => {
+          map.getCanvas().style.cursor = "";
+          popup.remove();
+        });
+        map.on("click", layerId, (e) => {
+          // Plants/awarded win where they coexist with a deal polygon.
+          const plantsHere = map.queryRenderedFeatures(e.point, {
+            layers: ["plants", "awarded"].filter((l) => map.getLayer(l)),
+          });
+          if (plantsHere.length) return;
+          const did = e.features[0]?.properties?.deal_id;
+          if (did != null) {
+            setSelected(null); // deal popup replaces any open plant panel
+            setDealSelected(did);
+          }
+        });
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, plants, overlaps, awarded, styleEpoch]);
 
@@ -559,6 +622,9 @@ export default function App() {
           onClose={() => setSelected(null)}
           dark={dark}
         />
+        {dealSelected != null && (
+          <DealPopup dealId={dealSelected} onClose={() => setDealSelected(null)} />
+        )}
         {showList && (
           <OverlapsList
             plants={plants}

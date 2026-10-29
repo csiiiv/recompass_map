@@ -66,5 +66,7 @@ export function createMap(container, dark) {
   });
   map.addControl(new NavigationControl({ showCompass: false }), "bottom-right");
   map.addControl(new AttributionControl({ compact: true }), "bottom-right");
+  // Debug hook for the headless probes (scripts/dbgprobe*.mjs) — dev only.
+  if (import.meta.env.DEV) window.__map = map;
   return map;
 }

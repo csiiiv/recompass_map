@@ -16,6 +16,7 @@ marineprotectedareas.zip        →   "                          →   mpa.geojs
 areas.geojson (Land Matrix)     →   "                          →   land_deals.geojson (145)
 locations.geojson (Land Matrix) → 08_land_locations.py        →   land_deal_sites.geojson (60 pts)
 deals.json (Land Matrix)        → 09_deal_details.py (API)    →   deal_details.json (325 deals)
+deals.json + deal_details.json  → 10_deal_info.py             →   land_deal_info.json (web lookup)
                                     03_overlaps.py             →   overlaps.json (129 plants flagged)
                                     05_simplify.py             →   (in-place, ~10x size cut)
 (a) SUMMARY ... May 2026.pdf     → 06_extract_awarded.py       →   awarded_projects.geojson (497)
@@ -74,6 +75,15 @@ they exist. Location names/descriptions were verified to match
 `locations.geojson` exactly, so `09` is a provenance/enrichment source,
 not a geometry source.
 
+### `10_deal_info.py`
+Joins `deals.json` (deal attributes) with `deal_details.json` (contracts,
+data sources, project name) into `app/public/data/land_deal_info.json` —
+the compact lookup the web app fetches lazily when a user clicks a
+land-deal polygon or site point (~390 KB, 325 deals, 68 energy-related).
+Enums stay as short codes; the frontend translates them
+(`app/src/constants.js`). Source titles trimmed to 90 chars, max 10
+sources per deal. Run after `09` whenever the Land Matrix data refreshes.
+
 ### `03_overlaps.py`
 For each plant point vs each sensitive feature:
 1. bbox prefilter (~5 km padding, 0.045°),
@@ -126,6 +136,7 @@ python3 scripts/05_simplify.py
 python3 scripts/06_extract_awarded.py
 python3 scripts/07_gazetteer.py
 python3 scripts/09_deal_details.py      # networked; resumable (skips cached deals)
+python3 scripts/10_deal_info.py         # joins deals + details -> web lookup
 ```
 
 Commit; GitHub Actions rebuilds and redeploys Pages automatically.
