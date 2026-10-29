@@ -29,6 +29,8 @@ const PERSISTENT_SOURCES = new Set([
   "mpa",
   "land_deals",
   "land_deal_sites",
+  "selection-ring",
+  "selection-line",
 ]);
 
 // Switch basemap while carrying our overlay layers over atomically

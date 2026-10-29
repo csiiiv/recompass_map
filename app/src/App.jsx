@@ -39,6 +39,7 @@ export default function App() {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const dealWiredRef = useRef(null); // map instance with deal handlers wired
+  const sensitiveDataRef = useRef({}); // fetched sensitive-layer FeatureCollections
   const [dark, setDark] = useState(false);
   const [ready, setReady] = useState(false);
   const [styleEpoch, setStyleEpoch] = useState(0);
@@ -277,6 +278,40 @@ export default function App() {
       map.on("click", "plants", (e) => {
         setSelected(e.features[0].properties.idx);
       });
+
+      // ---- selection highlight: bold ring around the selected plant ----
+      // A dedicated highlight source keeps the ring independent from the
+      // plants layer's filtering, so a selected plant stays highlighted
+      // even when filters would hide its dot.
+      map.addSource("selection-ring", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      map.addLayer({
+        id: "selection-ring",
+        type: "circle",
+        source: "selection-ring",
+        paint: {
+          "circle-radius": 11,
+          "circle-color": "transparent",
+          "circle-stroke-color": dark ? "#f4f4f5" : "#18181b",
+          "circle-stroke-width": 2.5,
+        },
+      });
+      // ---- selection highlight: thick outline for the selected deal polygon ----
+      map.addSource("selection-line", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      map.addLayer({
+        id: "selection-line",
+        type: "line",
+        source: "selection-line",
+        paint: {
+          "line-color": dark ? "#f4f4f5" : "#18181b",
+          "line-width": 3,
+        },
+      });
     }
 
     // awarded contracts: HOLLOW rings (no fill, thick dark-amber stroke) —
@@ -339,6 +374,7 @@ export default function App() {
         .then((r) => r.json())
         .then((fc) => {
           if (map.getSource(cfg.id) || !map.getStyle()) return;
+          sensitiveDataRef.current[cfg.id] = fc; // kept for selection lookups
           map.addSource(cfg.id, { type: "geojson", data: fc });
           if (cfg.type === "polygon") {
             map.addLayer({
@@ -358,14 +394,23 @@ export default function App() {
               },
             });
           } else {
+            // Land-deal site points run bigger than MPA dots — they mark
+            // individual deals and need to be clickable at low zoom.
+            const isDealSite = cfg.id === "land_deal_sites";
             map.addLayer({
               id: cfg.id,
               type: "circle",
               source: cfg.id,
               paint: {
                 "circle-color": layerColor(cfg.id, dark),
-                "circle-opacity": 0.7,
-                "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 2, 10, 5],
+                "circle-opacity": 0.85,
+                "circle-radius": isDealSite
+                  ? ["interpolate", ["linear"], ["zoom"], 5, 3.5, 10, 8]
+                  : ["interpolate", ["linear"], ["zoom"], 5, 2, 10, 5],
+                ...(isDealSite && {
+                  "circle-stroke-color": dark ? HALO.dark : HALO.light,
+                  "circle-stroke-width": 1,
+                }),
               },
             });
           }
@@ -462,6 +507,12 @@ export default function App() {
         map.setPaintProperty(`${cfg.id}-outline`, "line-color", c);
       }
     }
+    // selection highlight follows the theme too
+    const selColor = dark ? "#f4f4f5" : "#18181b";
+    if (map.getLayer("selection-ring"))
+      map.setPaintProperty("selection-ring", "circle-stroke-color", selColor);
+    if (map.getLayer("selection-line"))
+      map.setPaintProperty("selection-line", "line-color", selColor);
   }, [dark, ready, styleEpoch]);
 
   // ---- filtering ----
@@ -536,6 +587,50 @@ export default function App() {
       });
     }
   }, [selected, plants]);
+
+  // ---- selection highlight: ring (plant/deal site) + line (deal polygon) ----
+  // Redrawn whenever the selection changes; runs once sources exist. The
+  // theme-dependent stroke colors are refreshed by the repaint effect below.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.getSource("selection-ring")) return;
+    let ringFeats = [];
+    let lineFeats = [];
+
+    if (selected != null && plants?.[selected]?.geometry) {
+      ringFeats.push({
+        type: "Feature",
+        geometry: plants[selected].geometry,
+        properties: {},
+      });
+    }
+    if (dealSelected != null) {
+      // the deal's site point (precise deals) …
+      for (const source of ["land_deal_sites", "land_deals"]) {
+        const fc = sensitiveDataRef.current[source];
+        if (!fc) continue;
+        const feats = (fc.features || []).filter(
+          (f) => f.properties?.deal_id === dealSelected
+        );
+        for (const f of feats) {
+          if (f.geometry?.type === "Point") ringFeats.push(f);
+          else if (f.geometry) lineFeats.push(f);
+        }
+        // polygons take priority: a deal has either a polygon or points
+        if (feats.length) break;
+      }
+    }
+
+    map
+      .getSource("selection-ring")
+      .setData({ type: "FeatureCollection", features: ringFeats });
+    map
+      .getSource("selection-line")
+      .setData({ type: "FeatureCollection", features: lineFeats });
+    // ready re-triggers this once the map (and its sources) exist; plants
+    // guards the initial URL-selected plant; styleEpoch re-fires after
+    // basemap swaps (transformStyle rebuilds sources from PERSISTENT set).
+  }, [selected, dealSelected, plants, styleEpoch, ready]);
 
   // ---- resize hooks ----
   useEffect(() => {
