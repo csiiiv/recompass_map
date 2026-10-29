@@ -279,29 +279,62 @@ export default function App() {
         setSelected(e.features[0].properties.idx);
       });
 
-      // ---- selection highlight: bold ring around the selected plant ----
+      // ---- selection highlight: cased ring around the selected plant ----
       // A dedicated highlight source keeps the ring independent from the
       // plants layer's filtering, so a selected plant stays highlighted
-      // even when filters would hide its dot.
+      // even when filters would hide its dot. Two concentric strokes share
+      // the source — a wider theme-aware casing under a narrower yellow
+      // ring — giving a black-yellow-black (light) / white-yellow-white
+      // (dark) sandwich that pops on any basemap. Radius tracks the dot
+      // size (cap-aware) so the bands never cross the dot at high zoom.
       map.addSource("selection-ring", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
+      });
+      const SEL_RING_RADIUS = [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        5,
+        ["case", [">", ["coalesce", ["get", "cap"], 0], 100], 9, 7],
+        10,
+        ["case", [">", ["coalesce", ["get", "cap"], 0], 100], 16, 12.5],
+      ];
+      map.addLayer({
+        id: "selection-ring-casing",
+        type: "circle",
+        source: "selection-ring",
+        paint: {
+          "circle-radius": SEL_RING_RADIUS,
+          "circle-color": "transparent",
+          "circle-stroke-color": dark ? "#f4f4f5" : "#18181b",
+          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 5, 3.5, 10, 5.5],
+        },
       });
       map.addLayer({
         id: "selection-ring",
         type: "circle",
         source: "selection-ring",
         paint: {
-          "circle-radius": 11,
+          "circle-radius": SEL_RING_RADIUS,
           "circle-color": "transparent",
           "circle-stroke-color": dark ? "#fde047" : "#facc15",
-          "circle-stroke-width": 2.5,
+          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 5, 1.75, 10, 2.5],
         },
       });
-      // ---- selection highlight: thick outline for the selected deal polygon ----
+      // ---- selection highlight: cased outline for the selected deal polygon ----
       map.addSource("selection-line", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
+      });
+      map.addLayer({
+        id: "selection-line-casing",
+        type: "line",
+        source: "selection-line",
+        paint: {
+          "line-color": dark ? "#f4f4f5" : "#18181b",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 5, 4.5, 10, 7],
+        },
       });
       map.addLayer({
         id: "selection-line",
@@ -309,7 +342,7 @@ export default function App() {
         source: "selection-line",
         paint: {
           "line-color": dark ? "#fde047" : "#facc15",
-          "line-width": 3,
+          "line-width": ["interpolate", ["linear"], ["zoom"], 5, 2, 10, 3.25],
         },
       });
     }
@@ -509,10 +542,15 @@ export default function App() {
     }
     // selection highlight follows the theme too
     const selColor = dark ? "#fde047" : "#facc15";
-    if (map.getLayer("selection-ring"))
+    const selCasing = dark ? "#f4f4f5" : "#18181b";
+    if (map.getLayer("selection-ring")) {
       map.setPaintProperty("selection-ring", "circle-stroke-color", selColor);
-    if (map.getLayer("selection-line"))
+      map.setPaintProperty("selection-ring-casing", "circle-stroke-color", selCasing);
+    }
+    if (map.getLayer("selection-line")) {
       map.setPaintProperty("selection-line", "line-color", selColor);
+      map.setPaintProperty("selection-line-casing", "line-color", selCasing);
+    }
   }, [dark, ready, styleEpoch]);
 
   // ---- filtering ----
