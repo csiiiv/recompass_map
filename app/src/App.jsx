@@ -276,6 +276,7 @@ export default function App() {
         popup.remove();
       });
       map.on("click", "plants", (e) => {
+        setDealSelected(null); // one selection at a time
         setSelected(e.features[0].properties.idx);
       });
 
@@ -764,6 +765,7 @@ export default function App() {
             overlaps={overlaps}
             filteredIdx={filteredIdx}
             onSelect={(i) => {
+              setDealSelected(null); // one selection at a time
               setSelected(i);
               setShowList(false);
             }}
@@ -782,6 +784,7 @@ export default function App() {
           dataError={dataError}
           onClose={() => setShowAnalysis(false)}
           onSelect={(i) => {
+            setDealSelected(null); // one selection at a time
             setSelected(i);
             setShowAnalysis(false);
           }}
