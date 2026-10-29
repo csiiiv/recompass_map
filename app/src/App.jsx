@@ -294,7 +294,7 @@ export default function App() {
         paint: {
           "circle-radius": 11,
           "circle-color": "transparent",
-          "circle-stroke-color": dark ? "#f4f4f5" : "#18181b",
+          "circle-stroke-color": dark ? "#fde047" : "#facc15",
           "circle-stroke-width": 2.5,
         },
       });
@@ -308,7 +308,7 @@ export default function App() {
         type: "line",
         source: "selection-line",
         paint: {
-          "line-color": dark ? "#f4f4f5" : "#18181b",
+          "line-color": dark ? "#fde047" : "#facc15",
           "line-width": 3,
         },
       });
@@ -508,7 +508,7 @@ export default function App() {
       }
     }
     // selection highlight follows the theme too
-    const selColor = dark ? "#f4f4f5" : "#18181b";
+    const selColor = dark ? "#fde047" : "#facc15";
     if (map.getLayer("selection-ring"))
       map.setPaintProperty("selection-ring", "circle-stroke-color", selColor);
     if (map.getLayer("selection-line"))
