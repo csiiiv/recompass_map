@@ -11,7 +11,8 @@ data_sources/                      scripts                          app/public/d
 ─────────────────────────────     ────────────────────────────     ─────────────────────────
 Philippine Power Plant ...xlsx → 01_process_plants.py          →   plants.geojson (189)
 WDPA zip                        → 02_process_sensitive.py      →   protected_areas.geojson (452)
-Philippines_KBA.zip             →   "                          →   kba.geojson (137)
+Philippines_KBA_Feb2026.zip     →   "                          →   kba.geojson (121 confirmed)
+                                    "                          →   kba_proposed.geojson (194, display-only)
 marineprotectedareas.zip        →   "                          →   mpa.geojson (339)
 areas.geojson (Land Matrix)     →   "                          →   land_deals.geojson (145)
 locations.geojson (Land Matrix) → 08_land_locations.py        →   land_deal_sites.geojson (60 pts)
@@ -19,7 +20,8 @@ deals.json (Land Matrix)        → 09_deal_details.py (API)    →   deal_detai
 deals.json + deal_details.json  → 10_deal_info.py             →   land_deal_info.json (web lookup)
                                     03_overlaps.py             →   overlaps.json (129 plants flagged)
                                     05_simplify.py             →   (in-place, ~10x size cut)
-(a) SUMMARY ... May 2026.pdf     → 06_extract_awarded.py       →   awarded_projects.geojson (497)
+Awarded_RE_Service_Contracts.xlsx → 06_extract_awarded.py     →   awarded_projects.geojson (1262 multi-tech)
+  (optional --pdf solar audit)
 plants.geojson                  → 07_gazetteer.py             →   gazetteer.json (139 muni / 59 prov)
 ```
 
@@ -100,21 +102,31 @@ boundary shift ~200 m, immaterial vs the 5 km threshold. Also minifies JSON
 (separators). Result: 22 MB → 2 MB total.
 
 ### `06_extract_awarded.py`
-pdfplumber word extraction with x0-column assignment (columns measured from
-page 1: island 0-100, region 100-145, province 145-208, municipality 208-272,
-project 272-412, company 412-592, stage 592-660, potentials 660+).
-- Row grouping by `top` coordinate (3 pt tolerance).
-- Blank cells inherit from the previous row (PDF layout artifact).
-- Island cell may contain merged `Luzon II` — split; continuation rows with
-  region codes in the island column are handled via an `__island` carry.
-- Stage normalization (`Commercial Operation` can split across cells).
-- Validation: 497 rows, Σ potential = 31,573.5 MW vs PDF grand total
-  31,584.26 MW (99.97%).
+**Primary:** openpyxl read of `Awarded_RE_Service_Contracts.xlsx` (`DATABASE`
+sheet) → multi-tech `awarded_projects.geojson` (1,262 rows). Maps Sheet
+`Technology` to map fuels (`Hydropower`→`Hydro`, biomass variants→`Biomass`)
+and keeps `tech_detail`. Geometry null; client geocodes via gazetteer.
+**Audit:** `--pdf` still runs the legacy pdfplumber solar-only parser against
+`(a) SUMMARY-…31-May-2026.pdf`.
 
 ### `07_gazetteer.py`
 Centroids (geographic mean) of coordinate-bearing plants grouped by
 normalized municipality@province and province. Normalization strips "City",
 multi-municipality strings ("Aringay and Caba") split on and/,.
+
+## Pending data refresh (2026-11-01)
+
+Raw files staged in `sprints/2026-11-01-1949_new_data_update/data/`.
+See [`docs/DATA_SOURCES.md`](DATA_SOURCES.md) and
+[`sprints/.../docs/review_and_recommendations.md`](../sprints/2026-11-01-1949_new_data_update/docs/review_and_recommendations.md).
+
+1. **KBA — done (Policy B).** Confirmed → `kba.geojson` (overlap screen);
+   Proposed → `kba_proposed.geojson` (map toggle only). Profiles xlsx not
+   joined yet. Click popups for KBA/WDPA/MPA surface existing GeoJSON attrs.
+2. **Awarded — done.** Sheet ingest (1,262 multi-tech); UI + Analysis
+   pipeline tab; PDFs retained for provenance; `--pdf` audit path kept.
+3. **WDPA / MPA** — staged copies are byte-identical to live; no pipeline
+   change.
 
 ## Adding the pending layers (when data arrives)
 

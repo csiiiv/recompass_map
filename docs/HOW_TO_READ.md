@@ -53,9 +53,10 @@ Click **Analysis** in the upper right to open a large, tabbed window:
   summarizes unique plants per sensitive layer, and lists provinces for
   closer review. Download all province summaries or choose **View** beside
   a plant to return to its details on the map.
-- **Solar pipeline** shows awarded solar contracts by stage and province,
-  distinguishes non-commercial potential, and discloses estimated and missing
-  locations. Province summaries are downloadable.
+- **Awarded pipeline** shows multi-tech awarded RE contracts by technology,
+  stage, and province, distinguishes non-commercial potential, and discloses
+  estimated and missing locations. Technology + island filters are local to
+  that tab; province summaries are downloadable.
 - **Data & methods** explains the sources, counting rules, limits, and
   recommended data improvements.
 
@@ -67,13 +68,14 @@ layer does not change these calculations: all available sensitive layers
 are always considered. Each plant counts once in overall totals and once
 per sensitive layer; adding layer counts can therefore double-count plants.
 
-The solar tab has its own island filter and includes contracts without map
-coordinates. It does not inherit inventory filters. Potential MW is not
-installed capacity or a completion forecast; commercial-operation contracts
-are explicitly included in the source. Do not add contracts to inventory
-totals because the sources can contain the same projects. Estimated
-centroids are not used for sensitive-area screening. Multi-province labels
-remain together rather than assigning the full capacity to each province.
+The awarded-pipeline tab has its own technology and island filters and
+includes contracts without map coordinates. It does not inherit inventory
+filters. Potential MW is not installed capacity or a completion forecast;
+commercial-operation and biomass own-use contracts are included in the
+source. Do not add contracts to inventory totals because the sources can
+contain the same projects. Estimated centroids are not used for
+sensitive-area screening. Multi-province labels remain together rather than
+assigning the full capacity to each province.
 
 Use Escape, Close, or the backdrop to leave the window. Arrow keys move
 between focused tabs. CSV exports include the selected scope.
@@ -95,7 +97,8 @@ of, the boundary of a sensitive area, using public boundary data.
 |---|---|---|
 | Power plants | DOE Philippine Power Plant Inventory (grid + SPUG off-grid) | 2026 |
 | Protected areas | WDPA/WDOECM Philippines (protectedplanet.net) | Oct 2026 |
-| Key Biodiversity Areas | KBA Partnership | 2025 |
+| Key Biodiversity Areas (confirmed) | National KBA update | Feb 2026 |
+| Proposed KBAs (display only; not screened) | National KBA update | Feb 2026 |
 | Marine protected areas | UP-MSI pin locations | 2013 |
 | Land deals | Land Matrix | 2026 pull |
 

@@ -160,7 +160,9 @@ def main():
             json.loads((DATA / "protected_areas.geojson").read_text())["features"],
             ["name"],
         ),
-        "kba": (json.loads((DATA / "kba.geojson").read_text())["features"], ["IntName", "NatName"]),
+        # Confirmed KBAs only — Proposed lives in kba_proposed.geojson and is
+        # display-only (Policy B; see docs / sprint review_and_recommendations).
+        "kba": (json.loads((DATA / "kba.geojson").read_text())["features"], ["name"]),
         "mpa": (json.loads((DATA / "mpa.geojson").read_text())["features"], ["NAME", "SITE_CODE"]),
         "land_deals": (json.loads((DATA / "land_deals.geojson").read_text())["features"], ["name", "facility_name"]),
         # precise location pins for deals that have no polygon; approximate

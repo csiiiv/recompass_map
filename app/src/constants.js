@@ -13,6 +13,7 @@ export const FUEL_COLORS = {
   Hydro: "#3730a3", // deep indigo (vs land-deal violet)
   Geothermal: "#dc2626", // deep red
   Biomass: "#3f6212", // dark olive (vs PA bright green)
+  Ocean: "#0e7490", // teal (awarded ocean contracts; distinct from MPA cyan)
   BESS: "#a21caf", // dark magenta (vs KBA pink)
   "Oil-Based": "#7c8798", // slate gray
   Coal: "#33383f", // charcoal
@@ -33,6 +34,7 @@ export const FUEL_ORDER = [
   "Hydro",
   "Geothermal",
   "Biomass",
+  "Ocean",
   "BESS",
   "Oil-Based",
   "Coal",
@@ -48,7 +50,7 @@ export const LAYERS = {
   // Hollow rings. The stroke is theme-specific: #7c2d12 is only 1.06:1 against
   // Dark Matter (invisible), so dark mode gets the bright yellow ring instead.
   awarded: {
-    label: "Awarded contracts (solar)",
+    label: "Awarded RE contracts",
     color: "#facc15",
     stroke: "#7c2d12",
     strokeDark: "#fde047",
@@ -62,6 +64,15 @@ export const LAYERS = {
     label: "Key Biodiversity Areas",
     color: "#be185d",
     colorDark: "#ec4899",
+  },
+  // Display-only (Policy B): not in plant overlap screening. Dashed outline
+  // on the map; keep default visibility off so it doesn't crowd confirmed KBAs.
+  kba_proposed: {
+    label: "Proposed KBAs",
+    color: "#9d174d",
+    colorDark: "#f9a8d4",
+    note: "Not included in plant overlap flags",
+    dashed: true,
   },
   mpa: { label: "Marine protected areas", color: "#0e7490", colorDark: "#06b6d4" },
   land_deals: {

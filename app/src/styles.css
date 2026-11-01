@@ -135,7 +135,9 @@
 }
 
 .label {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 10.5px;
   font-weight: 700;
   text-transform: uppercase;
@@ -203,6 +205,17 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.layer-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.layer-item .layer-label {
+  flex: 1;
+  min-width: 0;
 }
 
 .layer-label {
@@ -335,6 +348,12 @@ html.dark .maplibregl-ctrl-attrib a {
   font-variant-numeric: tabular-nums;
 }
 
+.legend-hint {
+  margin: 0 0 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
 .dot {
   width: 9px;
   height: 9px;
@@ -344,6 +363,15 @@ html.dark .maplibregl-ctrl-attrib a {
   /* theme-aware ring: keeps dark fills (coal, hydro, biomass) legible
      against the dark panel, and light fills legible against the light one */
   box-shadow: 0 0 0 1px var(--dot-ring);
+}
+
+/* Hollow ring swatch for awarded-contract legend entries */
+.dot.ring {
+  background: transparent !important;
+  box-shadow: none;
+  border: 2px solid currentColor;
+  width: 8px;
+  height: 8px;
 }
 
 /* footer */
@@ -442,6 +470,31 @@ html.dark .maplibregl-ctrl-attrib a {
   color: var(--muted);
   font-size: 13px;
   padding: 8px 0;
+}
+
+.awarded-member-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.awarded-member {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12.5px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.awarded-member:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .deal-contract {
@@ -662,6 +715,130 @@ html.dark .ok-banner {
 
 .help-card p:last-child {
   margin-bottom: 0;
+}
+
+/* ---------- sidebar info (ⓘ) ---------- */
+.info-btn {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+}
+
+.info-btn:hover,
+.info-btn:focus-visible {
+  color: var(--accent);
+  background: var(--chip);
+  outline: none;
+}
+
+.info-dialog {
+  width: min(440px, calc(100vw - 32px));
+  max-height: min(80dvh, 560px);
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.info-dialog::backdrop {
+  background: rgba(8, 27, 45, 0.45);
+}
+
+.info-dialog-shell {
+  display: flex;
+  flex-direction: column;
+  max-height: min(80dvh, 560px);
+}
+
+.info-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.info-dialog-eyebrow {
+  display: block;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.info-dialog-header h2 {
+  margin: 4px 0 0;
+  font-size: 17px;
+  letter-spacing: -0.3px;
+}
+
+.info-dialog-body {
+  padding: 14px 18px 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.info-dialog-summary {
+  margin: 0 0 12px;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.info-dialog-bullets {
+  margin: 0 0 14px;
+  padding-left: 1.15em;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.info-dialog-bullets li {
+  margin-bottom: 6px;
+}
+
+.info-dialog-bullets li:last-child {
+  margin-bottom: 0;
+}
+
+.info-dialog-meta {
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.info-dialog-meta-row {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.info-dialog-meta-row dt {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.info-dialog-meta-row dd {
+  margin: 0;
 }
 
 /* ---------- overlaps modal ---------- */

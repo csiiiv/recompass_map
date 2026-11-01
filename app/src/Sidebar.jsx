@@ -1,4 +1,27 @@
+import { useMemo, useState } from "react";
 import { LAYERS, FUEL_ORDER, STATUS_OPTIONS, ISLAND_OPTIONS, fuelColor, layerColor } from "./constants.js";
+import { AWARDED_FUELS } from "./awardedSites.js";
+import InfoModal, { InfoButton } from "./InfoModal.jsx";
+
+function plantMatches(p, { query, fuel, status, island }, skip) {
+  if (skip !== "fuel" && fuel !== "all" && p.fuel !== fuel) return false;
+  if (skip !== "status" && status !== "all" && p.status !== status) return false;
+  if (skip !== "island" && island !== "all" && p.island !== island) return false;
+  if (skip !== "query" && query) {
+    const hay = `${p.name} ${p.province || ""} ${p.municipality || ""}`.toLowerCase();
+    if (!hay.includes(query)) return false;
+  }
+  return true;
+}
+
+function tally(items, key) {
+  const counts = {};
+  for (const item of items) {
+    const k = item[key] || "Not reported";
+    counts[k] = (counts[k] || 0) + 1;
+  }
+  return counts;
+}
 
 export default function Sidebar({
   className = "",
@@ -9,15 +32,66 @@ export default function Sidebar({
   filters,
   setFilters,
   plants,
+  awarded,
   filteredIdx,
   flaggedSet,
   layerCounts,
   awardedStats,
   onShowList,
 }) {
+  const [infoTopic, setInfoTopic] = useState(null);
+
   const nFlagged = plants
     ? [...filteredIdx].filter((i) => flaggedSet.has(i)).length
     : 0;
+
+  // Facet counts for filter dropdowns. Technology/island include awarded
+  // contracts (so Ocean shows 2); stage stays plant-inventory only.
+  const facets = useMemo(() => {
+    const q = filters.query.trim().toLowerCase();
+    const plantProps = (plants || []).map((f) => f.properties);
+    const awardedProps = (awarded || []).map((f) => f.properties);
+
+    const plantsForFuel = plantProps.filter((p) =>
+      plantMatches(p, { ...filters, query: q }, "fuel")
+    );
+    const awardedForFuel = awardedProps.filter((p) => {
+      if (filters.island !== "all" && p.island !== filters.island) return false;
+      return true;
+    });
+    const fuel = tally(
+      [
+        ...plantsForFuel.map((p) => ({ fuel: p.fuel })),
+        ...awardedForFuel.map((p) => ({ fuel: p.fuel })),
+      ],
+      "fuel"
+    );
+
+    const plantsForStatus = plantProps.filter((p) =>
+      plantMatches(p, { ...filters, query: q }, "status")
+    );
+    const status = tally(plantsForStatus, "status");
+
+    const plantsForIsland = plantProps.filter((p) =>
+      plantMatches(p, { ...filters, query: q }, "island")
+    );
+    const awardedForIsland = awardedProps.filter((p) => {
+      if (filters.fuel !== "all" && p.fuel !== filters.fuel) return false;
+      return true;
+    });
+    const island = tally(
+      [
+        ...plantsForIsland.map((p) => ({ island: p.island })),
+        ...awardedForIsland.map((p) => ({ island: p.island })),
+      ],
+      "island"
+    );
+
+    const fuelTotal = Object.values(fuel).reduce((a, b) => a + b, 0);
+    const statusTotal = Object.values(status).reduce((a, b) => a + b, 0);
+    const islandTotal = Object.values(island).reduce((a, b) => a + b, 0);
+    return { fuel, status, island, fuelTotal, statusTotal, islandTotal };
+  }, [plants, awarded, filters]);
 
   return (
     <aside className={`sidebar ${className}`.trim()}>
@@ -51,7 +125,14 @@ export default function Sidebar({
 
       <section className="block">
         <div className="label-row">
-          <span className="label">Filters</span>
+          <span className="label">
+            Filters
+            <InfoButton
+              label="Filters"
+              topic={{ kind: "section", id: "filters" }}
+              onOpen={setInfoTopic}
+            />
+          </span>
           <button
             className="link-btn"
             onClick={() =>
@@ -66,11 +147,12 @@ export default function Sidebar({
             className="select"
             value={filters.fuel}
             onChange={(e) => setFilters({ ...filters, fuel: e.target.value })}
+            title="Counts = plants + awarded contracts"
           >
-            <option value="all">All technologies</option>
+            <option value="all">All technologies ({facets.fuelTotal})</option>
             {FUEL_ORDER.map((f) => (
               <option key={f} value={f}>
-                {f}
+                {f} ({facets.fuel[f] || 0})
               </option>
             ))}
           </select>
@@ -78,11 +160,12 @@ export default function Sidebar({
             className="select"
             value={filters.status}
             onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+            title="Plant inventory stages only"
           >
-            <option value="all">All stages</option>
+            <option value="all">All stages ({facets.statusTotal})</option>
             {STATUS_OPTIONS.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {s} ({facets.status[s] || 0})
               </option>
             ))}
           </select>
@@ -90,11 +173,12 @@ export default function Sidebar({
             className="select"
             value={filters.island}
             onChange={(e) => setFilters({ ...filters, island: e.target.value })}
+            title="Counts = plants + awarded contracts"
           >
-            <option value="all">All island groups</option>
+            <option value="all">All island groups ({facets.islandTotal})</option>
             {ISLAND_OPTIONS.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {s} ({facets.island[s] || 0})
               </option>
             ))}
           </select>
@@ -131,8 +215,8 @@ export default function Sidebar({
                           border:
                             id === "plants"
                               ? "2px solid var(--muted)"
-                              : cfg.pending
-                                ? "2px dashed currentColor"
+                              : cfg.pending || cfg.dashed
+                                ? `2px dashed ${cfg.pending ? "currentColor" : layerColor(id, dark)}`
                                 : "none",
                           borderRadius: id === "plants" ? "50%" : "2px",
                         }
@@ -143,20 +227,34 @@ export default function Sidebar({
                   <span className="layer-badge">{layerCounts[id]}</span>
                 )}
               </label>
+              <InfoButton
+                label={cfg.label}
+                topic={{ kind: "layer", id }}
+                onOpen={setInfoTopic}
+              />
             </li>
           ))}
         </ul>
         {visible.awarded && awardedStats && (
           <p className="awarded-note">
-            {awardedStats.mapped} of {awardedStats.total} awarded contracts
-            placed at municipality/province centroids (approximate locations —{" "}
-            {awardedStats.unmapped} await coordinates).
+            {awardedStats.mapped} of {awardedStats.total} contracts geocoded →{" "}
+            {awardedStats.sites} map sites (one ring per centroid). Single-fuel
+            sites use that color; mixed sites are gray — click for breakdown.
+            Numbers mark stacks. Filter a technology to isolate it.{" "}
+            {awardedStats.unmapped} unmapped (incl. offshore).
           </p>
         )}
       </section>
 
       <section className="block">
-        <span className="label">By technology</span>
+        <span className="label">
+          Plants by technology
+          <InfoButton
+            label="Plants by technology"
+            topic={{ kind: "section", id: "plants_legend" }}
+            onOpen={setInfoTopic}
+          />
+        </span>
         <ul className="legend">
           {FUEL_ORDER.map((f) => {
             const n = plants
@@ -164,6 +262,8 @@ export default function Sidebar({
                   (i) => plants[i].properties.fuel === f
                 ).length
               : 0;
+            if (!n && !["Solar", "Wind", "Hydro", "Geothermal", "Biomass", "BESS", "Oil-Based", "Coal", "Natural Gas"].includes(f))
+              return null;
             return (
               <li
                 key={f}
@@ -171,7 +271,7 @@ export default function Sidebar({
                 onClick={() =>
                   setFilters({ ...filters, fuel: filters.fuel === f ? "all" : f })
                 }
-                title="Click to filter"
+                title="Click to filter plants and awarded"
               >
                 <span className="dot" style={{ background: fuelColor(f) }} />
                 <span className="legend-name">{f}</span>
@@ -181,6 +281,50 @@ export default function Sidebar({
           })}
         </ul>
       </section>
+
+      {visible.awarded && (
+        <section className="block">
+          <span className="label">
+            Awarded by technology
+            <InfoButton
+              label="Awarded by technology"
+              topic={{ kind: "section", id: "awarded_legend" }}
+              onOpen={setInfoTopic}
+            />
+          </span>
+          <p className="legend-hint">
+            Hollow rings · fuel color when alone, gray when mixed at one place
+          </p>
+          <ul className="legend">
+            {AWARDED_FUELS.map((f) => {
+              const n = (awarded || []).filter((feat) => {
+                const p = feat.properties;
+                if (p.fuel !== f) return false;
+                if (!feat.geometry) return false;
+                if (filters.island !== "all" && p.island !== filters.island) return false;
+                return true;
+              }).length;
+              return (
+                <li
+                  key={`aw-${f}`}
+                  className={`legend-item ${filters.fuel !== "all" && filters.fuel !== f ? "dim" : ""}`}
+                  onClick={() =>
+                    setFilters({ ...filters, fuel: filters.fuel === f ? "all" : f })
+                  }
+                  title="Click to filter"
+                >
+                  <span
+                    className="dot ring"
+                    style={{ borderColor: fuelColor(f) }}
+                  />
+                  <span className="legend-name">{f}</span>
+                  <span className="legend-n">{n}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       <footer className="sidebar-footer">
         <div className="stat-chip">
@@ -195,6 +339,8 @@ export default function Sidebar({
           the 4 Nov 2026 workshop — not an assessment of project performance.
         </p>
       </footer>
+
+      <InfoModal topic={infoTopic} onClose={() => setInfoTopic(null)} />
     </aside>
   );
 }

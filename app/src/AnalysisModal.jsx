@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { fuelColor, ISLAND_OPTIONS, LAYERS, layerColor } from "./constants.js";
+import { fuelColor, FUEL_ORDER, ISLAND_OPTIONS, LAYERS, layerColor } from "./constants.js";
 import {
-  downloadAnalysisCSV, groupPlants, layerSummary, number, percent,
-  plantRows, solarSummary, summarize,
+  awardedSummary, downloadAnalysisCSV, groupPlants, layerSummary, number, percent,
+  plantRows, summarize,
 } from "./analysis.js";
 import "./analysis.css";
 
@@ -10,9 +10,13 @@ const TABS = [
   { id: "home", label: "Home" },
   { id: "mix", label: "Energy mix" },
   { id: "sensitive", label: "Sensitive areas" },
-  { id: "solar", label: "Solar pipeline" },
+  { id: "awarded", label: "Awarded pipeline" },
   { id: "methods", label: "Data & methods" },
 ];
+
+const AWARDED_FUELS = FUEL_ORDER.filter((f) =>
+  ["Solar", "Wind", "Hydro", "Geothermal", "Biomass", "Ocean"].includes(f)
+);
 
 function Metric({ label, value, note }) {
   return <div className="analysis-metric"><span>{label}</span><strong>{value}</strong><small>{note}</small></div>;
@@ -64,7 +68,7 @@ function Home({ stats, technologies, provinces, onTab }) {
           <div className="analysis-paths">
             <button onClick={() => onTab("mix")}><strong>01 · Understand the energy mix <span>↗</span></strong><small>Compare technology, stage, and island group.</small></button>
             <button onClick={() => onTab("sensitive")}><strong>02 · Find places for closer review <span>↗</span></strong><small>Explore layers, provinces, and individual plants.</small></button>
-            <button onClick={() => onTab("solar")}><strong>03 · Explore awarded solar contracts <span>↗</span></strong><small>Separate potential capacity from operating projects.</small></button>
+            <button onClick={() => onTab("awarded")}><strong>03 · Explore awarded RE contracts <span>↗</span></strong><small>Multi-tech pipeline — separate potential capacity from operating projects.</small></button>
           </div>
         </Card>
       </div>
@@ -116,38 +120,64 @@ function SensitiveAreas({ rows, stats, provinces, scope, onSelect, dark }) {
       <Card title="Plants to explore on the map" subtitle="Ordered by number of distinct layers, then name. This is a review list, not a risk ranking." action={<label className="analysis-field">Province<select value={activeProvince} onChange={(e) => setProvince(e.target.value)}><option value="all">All provinces in this view</option>{[...provinces].sort((a, b) => a.name.localeCompare(b.name)).map((r) => <option key={r.name}>{r.name}</option>)}</select></label>}>
         {shortlist.length ? <div className="analysis-table-wrap analysis-review-table"><table className="analysis-table"><thead><tr><th>Plant</th><th>Location</th><th>Stage</th><th>Sensitive layers</th><th>Map</th></tr></thead><tbody>{shortlist.map((r) => <tr key={r.idx}><th scope="row">{r.name}<small>{r.fuel}</small></th><td>{[r.municipality, r.province].filter(Boolean).join(", ")}</td><td>{r.status}</td><td>{r.layers.map((id) => LAYERS[id]?.label || id).join(" · ")}</td><td><button className="analysis-text-btn" onClick={() => onSelect(r.idx)} aria-label={`View ${r.name} on map`}>View ↗</button></td></tr>)}</tbody></table></div> : <p className="analysis-note">No flagged plants in this province for the selected scope.</p>}
       </Card>
-      <p className="analysis-note">Sources: WDPA Oct 2026; KBAs 2025; UP-MSI MPAs 2013; Land Matrix 2026. MPAs and point-only WDPA entries use proximity, not boundaries. Land Matrix flags refer to deal areas, not project footprints or documented conflict.</p>
+      <p className="analysis-note">Sources: WDPA Oct 2026; confirmed KBAs Feb 2026 (Proposed KBAs are display-only and not screened); UP-MSI MPAs 2013; Land Matrix 2026. MPAs and point-only WDPA entries use proximity, not boundaries. Land Matrix flags refer to deal areas, not project footprints or documented conflict.</p>
     </>
   );
 }
 
-function SolarPipeline({ awarded }) {
+function AwardedPipeline({ awarded }) {
   const [island, setIsland] = useState("all");
-  const solar = useMemo(() => solarSummary(awarded, island), [awarded, island]);
-  const scope = `Awarded solar contracts; island=${island}; includes unmapped records; DOE 31 May 2026`;
+  const [fuel, setFuel] = useState("all");
+  const summary = useMemo(() => awardedSummary(awarded, { island, fuel }), [awarded, island, fuel]);
+  const scope = `Awarded RE contracts; tech=${fuel}; island=${island}; includes unmapped records; DOE Sheet export`;
   return (
     <>
-      <div className="analysis-section-heading"><div><h3>What does the awarded solar register show?</h3><p>DOE solar service contracts as of 31 May 2026. This tab uses its own island filter and includes unmapped records; map filters do not apply.</p></div><label className="analysis-field">Island group<select value={island} onChange={(e) => setIsland(e.target.value)}><option value="all">All island groups</option>{ISLAND_OPTIONS.map((name) => <option key={name}>{name}</option>)}</select></label></div>
+      <div className="analysis-section-heading">
+        <div>
+          <h3>What does the awarded RE register show?</h3>
+          <p>DOE awarded renewable energy service contracts (all technologies) from the shared Sheet. This tab uses its own technology and island filters and includes unmapped records; map filters do not apply.</p>
+        </div>
+        <div className="analysis-field-row">
+          <label className="analysis-field">Technology
+            <select value={fuel} onChange={(e) => setFuel(e.target.value)}>
+              <option value="all">All technologies</option>
+              {AWARDED_FUELS.map((name) => <option key={name} value={name}>{name}</option>)}
+            </select>
+          </label>
+          <label className="analysis-field">Island group
+            <select value={island} onChange={(e) => setIsland(e.target.value)}>
+              <option value="all">All island groups</option>
+              {ISLAND_OPTIONS.map((name) => <option key={name}>{name}</option>)}
+            </select>
+          </label>
+        </div>
+      </div>
       <div className="analysis-metrics">
-        <Metric label="Awarded solar contracts" value={number(solar.count)} note="Including commercial operation records" />
-        <Metric label="Reported potential" value={`${number(solar.potential / 1000)} GW`} note="All stages; not an installed-capacity total" />
-        <Metric label="Non-commercial potential" value={`${number(solar.nonCommercial.potential / 1000)} GW`} note={`${number(solar.nonCommercial.count)} contracts outside commercial operation`} />
-        <Metric label="Records placed on map" value={percent(solar.municipality + solar.province, solar.count)} note={`${number(solar.unmapped)} have no location estimate`} />
+        <Metric label="Awarded contracts" value={number(summary.count)} note="Including commercial operation and own-use records" />
+        <Metric label="Reported potential" value={`${number(summary.potential / 1000)} GW`} note="All stages; not an installed-capacity total" />
+        <Metric label="Non-commercial potential" value={`${number(summary.nonCommercial.potential / 1000)} GW`} note={`${number(summary.nonCommercial.count)} contracts outside commercial operation`} />
+        <Metric label="Records placed on map" value={percent(summary.municipality + summary.province, summary.count)} note={`${number(summary.unmapped)} have no location estimate`} />
       </div>
       <div className="analysis-grid">
-        <Card title="Potential by stage" subtitle="Potential MW is not a forecast of completion.">
-          <Bars rows={solar.stages} valueKey="potential" />
-          <div className="analysis-table-wrap analysis-stage-table"><table className="analysis-table"><thead><tr><th>Stage</th><th>Contracts</th><th>Installed MW</th></tr></thead><tbody>{solar.stages.map((r) => <tr key={r.name}><th scope="row">{r.name}</th><td>{number(r.count)}</td><td>{number(r.installed)}</td></tr>)}</tbody></table></div>
+        <Card title="Potential by technology" subtitle="Sheet technologies mapped to map fuel keys (Hydropower → Hydro).">
+          <Bars rows={summary.technologies} valueKey="potential" color={fuelColor} />
+          <div className="analysis-table-wrap analysis-stage-table"><table className="analysis-table"><thead><tr><th>Technology</th><th>Contracts</th><th>Potential MW</th><th>Installed MW</th></tr></thead><tbody>{summary.technologies.map((r) => <tr key={r.name}><th scope="row"><span className="dot" style={{ background: fuelColor(r.name) }} /> {r.name}</th><td>{number(r.count)}</td><td>{number(r.potential)}</td><td>{number(r.installed)}</td></tr>)}</tbody></table></div>
         </Card>
-        <Card title="Location confidence" subtitle="Centroids are estimates from inventory locations, not surveyed project sites.">
-          <Bars rows={[{ name: "Municipality centroid", count: solar.municipality }, { name: "Province centroid", count: solar.province }, { name: "Unmapped", count: solar.unmapped }]} />
-          <p className="analysis-note">No sensitive-area screening is calculated for awarded contracts. Coincident centroid markers do not establish a physical project cluster.</p>
+        <Card title="Potential by stage" subtitle="Potential MW is not a forecast of completion.">
+          <Bars rows={summary.stages} valueKey="potential" />
+          <div className="analysis-table-wrap analysis-stage-table"><table className="analysis-table"><thead><tr><th>Stage</th><th>Contracts</th><th>Installed MW</th></tr></thead><tbody>{summary.stages.map((r) => <tr key={r.name}><th scope="row">{r.name}</th><td>{number(r.count)}</td><td>{number(r.installed)}</td></tr>)}</tbody></table></div>
         </Card>
       </div>
-      <Card title="Where reported solar potential is concentrated" subtitle="Top 10 province labels by reported potential MW; includes every stage and location-confidence level. Multi-province entries stay grouped." action={<button className="btn ghost" onClick={() => downloadAnalysisCSV("re_compass_awarded_solar.csv", ["Province (source label)", "Contracts", "Reported potential MW", "Records without positive potential"], solar.provinces.map((r) => [r.name, r.count, r.potential, r.missingPotential]), scope)}>Download all provinces</button>}>
-        <div className="analysis-table-wrap"><table className="analysis-table"><thead><tr><th>Province</th><th>Contracts</th><th>Potential MW</th><th>Share of potential</th></tr></thead><tbody>{solar.provinces.slice(0, 10).map((r) => <tr key={r.name}><th scope="row">{r.name}</th><td>{number(r.count)}</td><td>{number(r.potential)}</td><td>{percent(r.potential, solar.potential)}</td></tr>)}</tbody></table></div>
-      </Card>
-      <p className="analysis-note">{number(solar.missingPotential)} records in this view have no positive reported potential and contribute no MW. Potential and installed MW are distinct source fields. Do not add these contracts to inventory totals: the two sources may contain the same projects. The full extracted register reconciles to about 99.97% of the PDF's 31,584.26 MW total. Multi-province source labels are kept together, without allocating MW to individual provinces.</p>
+      <div className="analysis-grid">
+        <Card title="Location confidence" subtitle="Centroids are estimates from inventory locations, not surveyed project sites. Offshore and multi-province rows often stay unmapped.">
+          <Bars rows={[{ name: "Municipality centroid", count: summary.municipality }, { name: "Province centroid", count: summary.province }, { name: "Unmapped", count: summary.unmapped }]} />
+          <p className="analysis-note">No sensitive-area screening is calculated for awarded contracts. Coincident centroid markers do not establish a physical project cluster.</p>
+        </Card>
+        <Card title="Where reported potential is concentrated" subtitle="Top 10 province labels by reported potential MW." action={<button className="btn ghost" onClick={() => downloadAnalysisCSV("re_compass_awarded_re.csv", ["Province (source label)", "Contracts", "Reported potential MW", "Records without positive potential"], summary.provinces.map((r) => [r.name, r.count, r.potential, r.missingPotential]), scope)}>Download all provinces</button>}>
+          <div className="analysis-table-wrap"><table className="analysis-table"><thead><tr><th>Province</th><th>Contracts</th><th>Potential MW</th><th>Share of potential</th></tr></thead><tbody>{summary.provinces.slice(0, 10).map((r) => <tr key={r.name}><th scope="row">{r.name}</th><td>{number(r.count)}</td><td>{number(r.potential)}</td><td>{percent(r.potential, summary.potential)}</td></tr>)}</tbody></table></div>
+        </Card>
+      </div>
+      <p className="analysis-note">{number(summary.missingPotential)} records in this view have no positive reported potential and contribute no MW. Potential and installed MW are distinct source fields. Do not add these contracts to inventory totals: the two sources may contain the same projects. Multi-province source labels are kept together, without allocating MW to individual provinces.</p>
     </>
   );
 }
@@ -173,9 +203,9 @@ function Methods() {
       <Card title="Sources and interpretation">
         <div className="analysis-table-wrap"><table className="analysis-table"><thead><tr><th>Dataset</th><th>Source / vintage</th><th>Use and limits</th></tr></thead><tbody>
           <tr><th scope="row">Power plant inventory</th><td>DOE via WeSolve · 2026</td><td>Grid and SPUG inventory, including fossil fuels and BESS. Source-reported locations may be approximate; coverage is not a national census.</td></tr>
-          <tr><th scope="row">Awarded solar contracts</th><td>DOE · 31 May 2026</td><td>Solar only. Includes commercial operation. Estimated centroids; unmapped records remain in aggregates.</td></tr>
+          <tr><th scope="row">Awarded RE contracts</th><td>DOE Sheet export · multi-tech (solar / wind / hydro / biomass / geothermal / ocean)</td><td>Includes commercial operation and biomass own-use. Estimated centroids; unmapped records (incl. offshore) remain in aggregates. Not overlap-screened.</td></tr>
           <tr><th scope="row">Protected areas</th><td>Protected Planet / UNEP-WCMC · Oct 2026</td><td>WDPA/WDOECM polygons and points. Point entries support proximity checks only.</td></tr>
-          <tr><th scope="row">Key Biodiversity Areas</th><td>KBA Partnership · 2025</td><td>Biodiversity context; can coincide with protected areas.</td></tr>
+          <tr><th scope="row">Key Biodiversity Areas</th><td>National KBA update · Feb 2026</td><td>Confirmed sites only in plant screening. Proposed KBAs are a separate map toggle and are not overlap-flagged.</td></tr>
           <tr><th scope="row">Marine protected areas</th><td>UP-MSI · 2013</td><td>Pin locations; newer designations are missing.</td></tr>
           <tr><th scope="row">Large-scale land deals</th><td>Land Matrix · 2026 export</td><td>Claimed deal areas, not project footprints or proof of land conflict.</td></tr>
           <tr><th scope="row">Ancestral domains / municipal waters</th><td>NCIP / NAMRIA-BFAR via UP-MSI · pending</td><td>Unavailable. No conclusions about these boundaries or affected communities can be drawn.</td></tr>
@@ -238,7 +268,7 @@ export default function AnalysisModal({ plants, overlaps, awarded, filteredIdx, 
               {tab === "mix" && <EnergyMix rows={rows} stats={stats} metric={metric} setMetric={setMetric} scope={scope} />}
               {tab === "sensitive" && <SensitiveAreas rows={rows} stats={stats} provinces={provinces} scope={scope} onSelect={onSelect} dark={dark} />}
             </>}
-            {tab === "solar" && <SolarPipeline awarded={awarded} />}
+            {tab === "awarded" && <AwardedPipeline awarded={awarded} />}
             {tab === "methods" && <Methods />}
           </>}
         </div>

@@ -3,7 +3,7 @@
 
 Protected areas: 14.8 MB -> target ~2-3 MB (tolerance ~0.002 deg at PH scale)
 Land deals:      5.3 MB -> target ~1-2 MB
-KBAs:            1.7 MB -> mild pass
+KBAs:            confirmed + Proposed (mild / coarser for Proposed)
 
 Overlaps were computed on full detail; simplification changes distances by
 < tolerance (~200 m), well inside the 5 km flag threshold, so re-running
@@ -20,6 +20,7 @@ TOLERANCES = {
     "protected_areas.geojson": 0.002,
     "land_deals.geojson": 0.0015,
     "kba.geojson": 0.001,
+    "kba_proposed.geojson": 0.0015,  # larger polys; slightly coarser OK (display-only)
 }
 
 

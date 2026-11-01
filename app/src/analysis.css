@@ -63,6 +63,7 @@
 .analysis-tabs button:focus-visible { outline-offset: -3px; }
 .analysis-scope { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px; padding: 12px 28px; border-bottom: 1px solid var(--border); background: var(--panel); }
 .analysis-field { display: flex; flex-direction: column; gap: 5px; font-size: 10px; font-weight: 650; color: var(--muted); }
+.analysis-field-row { display: flex; flex-wrap: wrap; gap: 10px; flex-shrink: 0; }
 .analysis-field select { max-width: 230px; padding: 7px 30px 7px 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg); color: var(--text); font: inherit; font-size: 12px; }
 .analysis-checkbox { display: flex; align-items: center; gap: 6px; font-size: 12px; white-space: nowrap; }
 .analysis-checkbox input { accent-color: var(--accent); }

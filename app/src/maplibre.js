@@ -24,8 +24,10 @@ export function basemapStyle(dark) {
 const PERSISTENT_SOURCES = new Set([
   "plants",
   "awarded",
+  "awarded-count",
   "protected_areas",
   "kba",
+  "kba_proposed",
   "mpa",
   "land_deals",
   "land_deal_sites",

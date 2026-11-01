@@ -2,8 +2,11 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import { Popup as MapLibrePopup } from "maplibre-gl";
 import { createMap, switchBasemap } from "./maplibre.js";
 import { fuelColor, LAYERS, HALO, FLAG_COLOR, layerColor } from "./constants.js";
+import { aggregateAwardedSites, awardedStrokeMatch } from "./awardedSites.js";
 import DetailPanel from "./DetailPanel.jsx";
 import DealPopup from "./DealPopup.jsx";
+import SensitivePopup from "./SensitivePopup.jsx";
+import AwardedPopup from "./AwardedPopup.jsx";
 import Sidebar from "./Sidebar.jsx";
 import OverlapsList from "./OverlapsList.jsx";
 import HelpNote from "./HelpNote.jsx";
@@ -12,6 +15,7 @@ import AnalysisModal from "./AnalysisModal.jsx";
 const SENSITIVE_SOURCES = [
   { id: "protected_areas", file: "data/protected_areas.geojson", type: "polygon" },
   { id: "kba", file: "data/kba.geojson", type: "polygon" },
+  { id: "kba_proposed", file: "data/kba_proposed.geojson", type: "polygon" },
   { id: "land_deals", file: "data/land_deals.geojson", type: "polygon" },
   { id: "mpa", file: "data/mpa.geojson", type: "point" },
   { id: "land_deal_sites", file: "data/land_deal_sites.geojson", type: "point" },
@@ -20,11 +24,41 @@ const SENSITIVE_SOURCES = [
 // Land Matrix deal layers that get hover tooltips + click popups.
 const DEAL_LAYERS = ["land_deals", "land_deal_sites"];
 
+// Sensitive layers browsable via click popup (attrs already on GeoJSON).
+const BROWSE_LAYERS = ["protected_areas", "kba", "kba_proposed", "mpa"];
+
+/** Circle radius driven by a numeric property (stack_count or n_<Fuel>). */
+function awardedRadiusExpr(countProp) {
+  return [
+    "interpolate",
+    ["linear"],
+    ["zoom"],
+    5,
+    ["min", 14, ["+", 3.5, ["*", ["sqrt", ["get", countProp]], 1.4]]],
+    10,
+    ["min", 22, ["+", 6, ["*", ["sqrt", ["get", countProp]], 2.2]]],
+  ];
+}
+
+function matchSensitiveFeature(layer, props, candidate) {
+  // MapLibre queryRenderedFeatures often stringifies numeric props — use ==.
+  const c = candidate.properties || {};
+  if (layer === "protected_areas") return c.wdpa_id == props.wdpa_id;
+  if (layer === "kba" || layer === "kba_proposed") return c.id == props.id;
+  if (layer === "mpa") return c.SITE_CODE == props.SITE_CODE || c.ID == props.ID;
+  return c.name === props.name;
+}
+
 // Escape user-sourceable strings before they go into tooltip HTML.
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   }[c]));
+
+const numberFmt = (v) =>
+  v == null || v === ""
+    ? "?"
+    : Number(v).toLocaleString("en-US", { maximumFractionDigits: 1 });
 
 const norm = (s) =>
   (s || "")
@@ -38,23 +72,27 @@ const norm = (s) =>
 export default function App() {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
-  const dealWiredRef = useRef(null); // map instance with deal handlers wired
+  const overlayWiredRef = useRef(null); // map instance with deal/sensitive handlers
   const sensitiveDataRef = useRef({}); // fetched sensitive-layer FeatureCollections
   const [dark, setDark] = useState(false);
   const [ready, setReady] = useState(false);
   const [styleEpoch, setStyleEpoch] = useState(0);
   const [plants, setPlants] = useState(null);
   const [overlaps, setOverlaps] = useState(null);
-  const [awarded, setAwarded] = useState(null);
+  const [awarded, setAwarded] = useState(null); // full register (incl. unmapped) for analysis
+  const [awardedSites, setAwardedSites] = useState(null); // aggregated map markers
   const [awardedStats, setAwardedStats] = useState(null);
+  const [awardedSelected, setAwardedSelected] = useState(null); // stacked site props
   const [dataError, setDataError] = useState(false);
   const [selected, setSelected] = useState(null); // plant index
   const [dealSelected, setDealSelected] = useState(null); // Land Matrix deal_id
+  const [sensitiveSelected, setSensitiveSelected] = useState(null); // { layer, props }
   const [visible, setVisible] = useState({
     plants: true,
     awarded: false,
     protected_areas: true,
     kba: false,
+    kba_proposed: false,
     mpa: false,
     land_deals: false,
     land_deal_sites: false,
@@ -150,10 +188,13 @@ export default function App() {
         }
       }
       setAwarded(a.features);
+      const sites = aggregateAwardedSites(a.features);
+      setAwardedSites(sites);
       setAwardedStats({
         total: a.features.length,
         mapped,
         unmapped: a.features.length - mapped,
+        sites: sites.length,
       });
     })().catch(() => {
       if (!cancelled) setDataError(true);
@@ -276,7 +317,9 @@ export default function App() {
         popup.remove();
       });
       map.on("click", "plants", (e) => {
-        setDealSelected(null); // one selection at a time
+        setDealSelected(null);
+        setSensitiveSelected(null);
+        setAwardedSelected(null);
         setSelected(e.features[0].properties.idx);
       });
 
@@ -348,13 +391,13 @@ export default function App() {
       });
     }
 
-    // awarded contracts: HOLLOW rings (no fill, thick dark-amber stroke) —
-    // unmistakably distinct from solid solar dots even at the same location
-    if (!map.getSource("awarded") && awarded) {
-      const feats = awarded.filter((f) => f.geometry);
+    // Awarded RE: one hollow ring per centroid (not per fuel). Mixed sites
+    // use a neutral stroke; single-fuel sites keep that technology color.
+    // Numbers mark stacked contracts; fuel filter resizes/labels via n_*.
+    if (!map.getSource("awarded") && awardedSites) {
       map.addSource("awarded", {
         type: "geojson",
-        data: { type: "FeatureCollection", features: feats },
+        data: { type: "FeatureCollection", features: awardedSites },
       });
       map.addLayer({
         id: "awarded",
@@ -362,20 +405,35 @@ export default function App() {
         source: "awarded",
         paint: {
           "circle-opacity": 0,
-          "circle-radius": [
+          "circle-radius": awardedRadiusExpr("stack_count"),
+          "circle-stroke-color": awardedStrokeMatch(),
+          "circle-stroke-width": [
             "interpolate",
             ["linear"],
             ["zoom"],
             5,
-            ["case", [">", ["get", "potential_mw"], 100], 6, 4],
+            ["case", [">", ["get", "stack_count"], 1], 2.2, 1.6],
             10,
-            ["case", [">", ["get", "potential_mw"], 100], 12, 8],
+            ["case", [">", ["get", "stack_count"], 1], 3.2, 2.4],
           ],
-          "circle-stroke-color": dark
-            ? LAYERS.awarded.strokeDark
-            : LAYERS.awarded.stroke,
-          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 5, 1.5, 10, 2.5],
-          "circle-stroke-opacity": 0.9,
+          "circle-stroke-opacity": 0.95,
+        },
+      });
+      map.addLayer({
+        id: "awarded-count",
+        type: "symbol",
+        source: "awarded",
+        filter: [">", ["get", "stack_count"], 1],
+        layout: {
+          "text-field": ["to-string", ["get", "stack_count"]],
+          "text-size": ["interpolate", ["linear"], ["zoom"], 5, 9, 10, 12],
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+        },
+        paint: {
+          "text-color": dark ? "#f4f4f5" : "#18181b",
+          "text-halo-color": dark ? "#18181b" : "#f4f4f5",
+          "text-halo-width": 1.25,
         },
       });
       const popup = tooltipRef.current;
@@ -385,20 +443,40 @@ export default function App() {
         const p = f.properties;
         const approx =
           p.geocode_status === "centroid_province"
-            ? " · province approx."
+            ? "province centroid"
             : p.geocode_status === "centroid_municipality"
-              ? " · approx. location"
-              : "";
+              ? "municipality centroid"
+              : "approx. location";
+        const n = Number(p.stack_count) || 1;
+        const place = [p.municipality, p.province].filter(Boolean).join(", ");
+        const mix =
+          Number(p.fuel_n) > 1
+            ? esc(p.breakdown || "mixed technologies")
+            : esc(p.primary_fuel || "");
         popup
           .setLngLat(f.geometry.coordinates)
           .setHTML(
-            `<strong>${p.name}</strong><br/>${p.company || ""}<br/>${p.stage} · ${p.potential_mw ?? "?"} MW${approx}`
+            `<strong>${esc(p.label)}</strong><br/>${mix} · ${n} contract${n > 1 ? "s" : ""} · ${numberFmt(p.potential_mw)} MW potential<br/><span style="opacity:.75">${esc(place)} · ${approx}</span><br/><i>Click for list</i>`
           )
           .addTo(map);
       });
       map.on("mouseleave", "awarded", () => {
         map.getCanvas().style.cursor = "";
         popup.remove();
+      });
+      map.on("click", "awarded", (e) => {
+        const f = e.features[0];
+        if (!f) return;
+        setSelected(null);
+        setDealSelected(null);
+        setSensitiveSelected(null);
+        let members = [];
+        try {
+          members = JSON.parse(f.properties.members_json || "[]");
+        } catch {
+          members = [];
+        }
+        setAwardedSelected({ ...f.properties, members });
       });
     }
 
@@ -411,11 +489,15 @@ export default function App() {
           sensitiveDataRef.current[cfg.id] = fc; // kept for selection lookups
           map.addSource(cfg.id, { type: "geojson", data: fc });
           if (cfg.type === "polygon") {
+            const isProposed = cfg.id === "kba_proposed";
             map.addLayer({
               id: cfg.id,
               type: "fill",
               source: cfg.id,
-              paint: { "fill-color": layerColor(cfg.id, dark), "fill-opacity": 0.12 },
+              paint: {
+                "fill-color": layerColor(cfg.id, dark),
+                "fill-opacity": isProposed ? 0.06 : 0.12,
+              },
             });
             map.addLayer({
               id: `${cfg.id}-outline`,
@@ -424,7 +506,8 @@ export default function App() {
               paint: {
                 "line-color": layerColor(cfg.id, dark),
                 "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.6, 10, 1.6],
-                "line-opacity": 0.7,
+                "line-opacity": isProposed ? 0.55 : 0.7,
+                ...(isProposed && { "line-dasharray": [2, 2] }),
               },
             });
           } else {
@@ -456,12 +539,12 @@ export default function App() {
         });
     }
 
-    // ---- Land Matrix deal layers: hover tooltip + click popup ----
+    // ---- Overlay browse: Land Matrix deals + WDPA/KBA/MPA click popups ----
     // Handlers are layer-scoped and survive basemap swaps (transformStyle
     // carries sources+layers across), so wire them once per map instance.
     // (StrictMode dev double-mount replaces the map — hence instance check.)
-    if (dealWiredRef.current !== map) {
-      dealWiredRef.current = map;
+    if (overlayWiredRef.current !== map) {
+      overlayWiredRef.current = map;
       const popup = tooltipRef.current;
       const ACC = {
         EXACT_LOCATION: "Exact location",
@@ -470,6 +553,11 @@ export default function App() {
         ADMINISTRATIVE_REGION: "Administrative region",
         COUNTRY: "Country level",
       };
+      const pointWins = (point) =>
+        map.queryRenderedFeatures(point, {
+          layers: ["plants", "awarded"].filter((l) => map.getLayer(l)),
+        }).length > 0;
+
       for (const layerId of DEAL_LAYERS) {
         const hint =
           layerId === "land_deal_sites" ? "site point · " : "";
@@ -493,21 +581,57 @@ export default function App() {
           popup.remove();
         });
         map.on("click", layerId, (e) => {
-          // Plants/awarded win where they coexist with a deal polygon.
-          const plantsHere = map.queryRenderedFeatures(e.point, {
-            layers: ["plants", "awarded"].filter((l) => map.getLayer(l)),
-          });
-          if (plantsHere.length) return;
+          if (pointWins(e.point)) return;
           const did = e.features[0]?.properties?.deal_id;
           if (did != null) {
-            setSelected(null); // deal popup replaces any open plant panel
+            setSelected(null);
+            setSensitiveSelected(null);
+            setAwardedSelected(null);
             setDealSelected(did);
           }
         });
       }
+
+      for (const layerId of BROWSE_LAYERS) {
+        map.on("mouseenter", layerId, (e) => {
+          map.getCanvas().style.cursor = "pointer";
+          const p = e.features[0]?.properties || {};
+          const name = p.name || p.NAME || LAYERS[layerId]?.label || layerId;
+          const sub =
+            layerId === "protected_areas"
+              ? [p.desig, p.iucn_cat].filter(Boolean).join(" · ")
+              : layerId === "mpa"
+                ? [p.TYPE, p.IUCNCAT_CO].filter(Boolean).join(" · ")
+                : [p.kba_class || p.kba_categ, p.status].filter(Boolean).join(" · ");
+          popup
+            .setLngLat(e.lngLat)
+            .setHTML(
+              `<strong>${esc(name)}</strong>${sub ? `<br/>${esc(sub)}` : ""}<br/><i>Click for details</i>`
+            )
+            .addTo(map);
+        });
+        map.on("mouseleave", layerId, () => {
+          map.getCanvas().style.cursor = "";
+          popup.remove();
+        });
+        map.on("click", layerId, (e) => {
+          if (pointWins(e.point)) return;
+          // Deals win when stacked with a sensitive polygon at the same point.
+          const dealHere = map.queryRenderedFeatures(e.point, {
+            layers: DEAL_LAYERS.filter((l) => map.getLayer(l)),
+          });
+          if (dealHere.length) return;
+          const f = e.features[0];
+          if (!f) return;
+          setSelected(null);
+          setDealSelected(null);
+          setAwardedSelected(null);
+          setSensitiveSelected({ layer: layerId, props: { ...f.properties } });
+        });
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, plants, overlaps, awarded, styleEpoch]);
+  }, [ready, plants, overlaps, awardedSites, styleEpoch]);
 
   // ---- repaint theme-dependent paint properties ----
   // Layers are only *added* once, so toggling light/dark must re-apply every
@@ -526,11 +650,11 @@ export default function App() {
       ]);
     }
     if (map.getLayer("awarded")) {
-      map.setPaintProperty(
-        "awarded",
-        "circle-stroke-color",
-        dark ? LAYERS.awarded.strokeDark : LAYERS.awarded.stroke
-      );
+      map.setPaintProperty("awarded", "circle-stroke-color", awardedStrokeMatch());
+    }
+    if (map.getLayer("awarded-count")) {
+      map.setPaintProperty("awarded-count", "text-color", dark ? "#f4f4f5" : "#18181b");
+      map.setPaintProperty("awarded-count", "text-halo-color", dark ? "#18181b" : "#f4f4f5");
     }
     for (const cfg of SENSITIVE_SOURCES) {
       const c = layerColor(cfg.id, dark);
@@ -581,6 +705,51 @@ export default function App() {
     map.setFilter("plants-halo", filteredIdx.size ? filt : ["==", ["get", "idx"], -1]);
   }, [filteredIdx, styleEpoch]);
 
+  // Awarded sites: island filter + technology via per-fuel counts (n_Solar…).
+  // One ring per centroid stays; fuel filter only shows sites that include
+  // that tech and resizes/labels to that tech's count.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.getLayer("awarded")) return;
+    const fuel = filters.fuel;
+    const countProp =
+      fuel !== "all" ? `n_${fuel}` : "stack_count";
+    const parts = [];
+    if (fuel !== "all") parts.push([">", ["get", countProp], 0]);
+    if (filters.island !== "all")
+      parts.push(["==", ["get", "island"], filters.island]);
+    const filt = parts.length ? ["all", ...parts] : null;
+    map.setFilter("awarded", filt);
+    map.setPaintProperty("awarded", "circle-radius", awardedRadiusExpr(countProp));
+    map.setPaintProperty("awarded", "circle-stroke-width", [
+      "interpolate",
+      ["linear"],
+      ["zoom"],
+      5,
+      ["case", [">", ["get", countProp], 1], 2.2, 1.6],
+      10,
+      ["case", [">", ["get", countProp], 1], 3.2, 2.4],
+    ]);
+    // When filtering to one fuel, paint that fuel's color even on mixed sites.
+    if (fuel !== "all") {
+      map.setPaintProperty("awarded", "circle-stroke-color", fuelColor(fuel));
+    } else {
+      map.setPaintProperty("awarded", "circle-stroke-color", awardedStrokeMatch());
+    }
+    if (map.getLayer("awarded-count")) {
+      map.setFilter(
+        "awarded-count",
+        filt
+          ? ["all", [">", ["get", countProp], 1], filt]
+          : [">", ["get", countProp], 1]
+      );
+      map.setLayoutProperty("awarded-count", "text-field", [
+        "to-string",
+        ["get", countProp],
+      ]);
+    }
+  }, [filters.fuel, filters.island, styleEpoch, awardedSites]);
+
   // ---- layer visibility ----
   useEffect(() => {
     const map = mapRef.current;
@@ -591,6 +760,8 @@ export default function App() {
       if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
       if (map.getLayer(`${id}-outline`))
         map.setLayoutProperty(`${id}-outline`, "visibility", vis);
+      if (id === "awarded" && map.getLayer("awarded-count"))
+        map.setLayoutProperty("awarded-count", "visibility", vis);
     }
   }, [visible, styleEpoch]);
 
@@ -659,6 +830,17 @@ export default function App() {
         if (feats.length) break;
       }
     }
+    if (sensitiveSelected != null) {
+      const { layer, props } = sensitiveSelected;
+      const fc = sensitiveDataRef.current[layer];
+      const feats = (fc?.features || []).filter((f) =>
+        matchSensitiveFeature(layer, props, f)
+      );
+      for (const f of feats) {
+        if (f.geometry?.type === "Point") ringFeats.push(f);
+        else if (f.geometry) lineFeats.push(f);
+      }
+    }
 
     map
       .getSource("selection-ring")
@@ -669,7 +851,7 @@ export default function App() {
     // ready re-triggers this once the map (and its sources) exist; plants
     // guards the initial URL-selected plant; styleEpoch re-fires after
     // basemap swaps (transformStyle rebuilds sources from PERSISTENT set).
-  }, [selected, dealSelected, plants, styleEpoch, ready]);
+  }, [selected, dealSelected, sensitiveSelected, plants, styleEpoch, ready]);
 
   // ---- resize hooks ----
   useEffect(() => {
@@ -691,7 +873,7 @@ export default function App() {
 
   const layerCounts = useMemo(() => {
     const counts = { plants: plants ? plants.filter((f) => f.geometry).length : 0 };
-    if (awardedStats) counts.awarded = awardedStats.mapped;
+    if (awardedStats) counts.awarded = awardedStats.sites ?? awardedStats.mapped;
     const fromOverlaps = (layer) =>
       overlaps
         ? new Set(
@@ -720,6 +902,7 @@ export default function App() {
         filters={filters}
         setFilters={setFilters}
         plants={plants}
+        awarded={awarded}
         filteredIdx={filteredIdx}
         flaggedSet={flaggedSet}
         layerCounts={layerCounts}
@@ -759,13 +942,29 @@ export default function App() {
         {dealSelected != null && (
           <DealPopup dealId={dealSelected} onClose={() => setDealSelected(null)} />
         )}
+        {sensitiveSelected != null && (
+          <SensitivePopup
+            layer={sensitiveSelected.layer}
+            properties={sensitiveSelected.props}
+            dark={dark}
+            onClose={() => setSensitiveSelected(null)}
+          />
+        )}
+        {awardedSelected != null && (
+          <AwardedPopup
+            site={awardedSelected}
+            onClose={() => setAwardedSelected(null)}
+          />
+        )}
         {showList && (
           <OverlapsList
             plants={plants}
             overlaps={overlaps}
             filteredIdx={filteredIdx}
             onSelect={(i) => {
-              setDealSelected(null); // one selection at a time
+              setDealSelected(null);
+              setSensitiveSelected(null);
+              setAwardedSelected(null);
               setSelected(i);
               setShowList(false);
             }}
@@ -784,7 +983,9 @@ export default function App() {
           dataError={dataError}
           onClose={() => setShowAnalysis(false)}
           onSelect={(i) => {
-            setDealSelected(null); // one selection at a time
+            setDealSelected(null);
+            setSensitiveSelected(null);
+            setAwardedSelected(null);
             setSelected(i);
             setShowAnalysis(false);
           }}

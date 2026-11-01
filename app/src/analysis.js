@@ -58,14 +58,17 @@ export function layerSummary(rows) {
   });
 }
 
-export function solarSummary(features, island = "all") {
-  const rows = features.filter((f) => island === "all" || f.properties.island === island).map((f) => ({
-    ...f.properties,
-    potential: positiveMW(f.properties.potential_mw),
-    installed: positiveMW(f.properties.installed_mw),
-    location: f.geometry && f.properties.geocode_status === "centroid_municipality" ? "municipality"
-      : f.geometry && f.properties.geocode_status === "centroid_province" ? "province" : "unmapped",
-  }));
+export function awardedSummary(features, { island = "all", fuel = "all" } = {}) {
+  const rows = features
+    .filter((f) => island === "all" || f.properties.island === island)
+    .filter((f) => fuel === "all" || f.properties.fuel === fuel)
+    .map((f) => ({
+      ...f.properties,
+      potential: positiveMW(f.properties.potential_mw),
+      installed: positiveMW(f.properties.installed_mw),
+      location: f.geometry && f.properties.geocode_status === "centroid_municipality" ? "municipality"
+        : f.geometry && f.properties.geocode_status === "centroid_province" ? "province" : "unmapped",
+    }));
   const total = (members) => ({
     count: members.length,
     potential: members.reduce((sum, row) => sum + row.potential, 0),
@@ -79,11 +82,17 @@ export function solarSummary(features, island = "all") {
     ...total(rows),
     stages: group("stage"),
     provinces: group("province"),
+    technologies: group("fuel"),
     municipality: rows.filter((row) => row.location === "municipality").length,
     province: rows.filter((row) => row.location === "province").length,
     unmapped: rows.filter((row) => row.location === "unmapped").length,
     nonCommercial: total(rows.filter((row) => row.stage !== "Commercial Operation")),
   };
+}
+
+/** @deprecated alias — prefer awardedSummary */
+export function solarSummary(features, island = "all") {
+  return awardedSummary(features, { island });
 }
 
 export function downloadAnalysisCSV(filename, headers, rows, scope) {

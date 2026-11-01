@@ -109,14 +109,44 @@ def read_wdpa():
     return all_feats
 
 
+# Feb 2026 national KBA shapefile (truncated DBF names → friendly keys).
+# Policy B: split confirmed (`KBA`) vs Proposed into separate GeoJSONs;
+# only confirmed enters the default plant-overlap screen.
+KBA_KEEP = {
+    "ID": "id",
+    "KBA_Name": "name",
+    "KBA_Class": "kba_class",
+    "KBA_Categ": "kba_categ",
+    "Area_sqkm": "area_km2",
+    "Latitude": "lat",
+    "Longitude": "lon",
+    "Min_Depth": "min_depth_m",
+    "Max_Depth": "max_depth_m",
+    "Min_Elev": "min_elev_m",
+    "Max_Elev": "max_elev_m",
+    "Region": "region",
+    "Province": "province",
+    "Municipali": "municipality",
+    "_Geographi": "island_group",
+    "_Category": "category",
+    "_Status": "status",
+    "_Type": "kba_type",
+}
+
+
 def read_kba():
-    z = zipfile.ZipFile(DS / "Philippines_KBA.zip")
-    names = {n.split("/")[-1]: n for n in z.namelist()}
-    r = shapefile.Reader(shp=io.BytesIO(z.read(names["Philippines_KBA.shp"])), dbf=io.BytesIO(z.read(names["Philippines_KBA.dbf"])))
-    print(f"  KBA: {len(r)} records, fields {[f[0] for f in r.fields[1:]]}")
-    feats = []
+    """Return (confirmed_feats, proposed_feats) from the Feb 2026 zip."""
+    z = zipfile.ZipFile(DS / "Philippines_KBA_Feb2026.zip")
+    shp_name = next(n for n in z.namelist() if n.lower().endswith(".shp"))
+    stem = shp_name[:-4]
+    r = shapefile.Reader(
+        shp=io.BytesIO(z.read(shp_name)),
+        dbf=io.BytesIO(z.read(stem + ".dbf")),
+    )
+    print(f"  KBA source: {len(r)} records, fields {[f[0] for f in r.fields[1:]]}")
+    confirmed, proposed = [], []
     for sr in r.iterShapeRecords():
-        props = {}
+        raw = {}
         fields = [f[0] for f in r.fields[1:]]
         for i, f in enumerate(fields):
             v = sr.record[i]
@@ -124,11 +154,22 @@ def read_kba():
                 v = None
             if isinstance(v, str):
                 v = v.strip() or None
-            props[f] = v
+            # shapefile IDs often arrive as floats (152.0) — normalize
+            if f == "ID" and isinstance(v, float) and v == int(v):
+                v = int(v)
+            raw[f] = v
+        props = {KBA_KEEP[k]: raw[k] for k in KBA_KEEP if raw.get(k) is not None}
         rings = rings_to_multipoly(sr.shape.points, sr.shape.parts)
         geom = {"type": "MultiPolygon", "coordinates": [[ring] for ring in rings]} if rings else None
-        feats.append({"type": "Feature", "geometry": geom, "properties": props})
-    return feats
+        feat = {"type": "Feature", "geometry": geom, "properties": props}
+        cls = (props.get("kba_class") or "").strip()
+        if cls == "Proposed KBA":
+            proposed.append(feat)
+        else:
+            # "KBA" and any unexpected class → confirmed bucket (overlap screen)
+            confirmed.append(feat)
+    print(f"  split: {len(confirmed)} confirmed KBA, {len(proposed)} Proposed KBA")
+    return confirmed, proposed
 
 
 def read_mpa():
@@ -165,8 +206,10 @@ def write(name, feats):
 if __name__ == "__main__":
     print("WDPA protected areas:")
     write("protected_areas.geojson", read_wdpa())
-    print("KBAs:")
-    write("kba.geojson", read_kba())
+    print("KBAs (Policy B: confirmed + Proposed split):")
+    confirmed, proposed = read_kba()
+    write("kba.geojson", confirmed)
+    write("kba_proposed.geojson", proposed)
     print("MPAs:")
     write("mpa.geojson", read_mpa())
     print("Land Matrix:")

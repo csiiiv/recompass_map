@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { groupPlants, layerSummary, plantRows, solarSummary, summarize } from "./analysis.js";
+import { awardedSummary, groupPlants, layerSummary, plantRows, solarSummary, summarize } from "./analysis.js";
 
 const plant = (fuel, province, mw, geometry = { type: "Point", coordinates: [122, 12] }) => ({
   geometry, properties: { name: fuel, fuel, province, capacity_mw: mw },
@@ -36,17 +36,17 @@ test("filtering preserves original overlap indices and excludes storage from ren
   assert.equal(summarize(plantRows(plants, overlaps, new Set())).count, 0);
 });
 
-test("solar aggregates keep unmapped contracts, separate installed MW, and preserve multi-province labels", () => {
-  const contract = (island, stage, potential, installed, location) => ({
+test("awarded aggregates keep unmapped contracts, tech filter, and multi-province labels", () => {
+  const contract = (island, stage, potential, installed, location, fuel = "Solar") => ({
     geometry: location ? { type: "Point", coordinates: [122, 12] } : null,
-    properties: { island, stage, province: "A and B", potential_mw: potential, installed_mw: installed, geocode_status: location },
+    properties: { island, stage, fuel, province: "A and B", potential_mw: potential, installed_mw: installed, geocode_status: location },
   });
   const features = [
-    contract("Luzon", "Development", 100, 0, "centroid_municipality"),
-    contract("Luzon", "Commercial Operation", 0, 80, null),
-    contract("Visayas", "Pre-Development", 20, 0, "centroid_province"),
+    contract("Luzon", "Development", 100, 0, "centroid_municipality", "Solar"),
+    contract("Luzon", "Commercial Operation", 0, 80, null, "Wind"),
+    contract("Visayas", "Pre-Development", 20, 0, "centroid_province", "Solar"),
   ];
-  const summary = solarSummary(features);
+  const summary = awardedSummary(features);
   assert.equal(summary.count, 3);
   assert.equal(summary.potential, 120);
   assert.equal(summary.installed, 80);
@@ -55,8 +55,11 @@ test("solar aggregates keep unmapped contracts, separate installed MW, and prese
   assert.equal(summary.unmapped, 1);
   assert.equal(summary.provinces[0].name, "A and B");
   assert.equal(summary.provinces[0].count, 3);
-  assert.equal(solarSummary(features, "Luzon").count, 2);
-  assert.equal(solarSummary(features, "Mindanao").count, 0);
+  assert.equal(summary.technologies.find((t) => t.name === "Solar").count, 2);
+  assert.equal(awardedSummary(features, { island: "Luzon" }).count, 2);
+  assert.equal(awardedSummary(features, { island: "Mindanao" }).count, 0);
+  assert.equal(awardedSummary(features, { fuel: "Wind" }).count, 1);
+  assert.equal(solarSummary(features, "Luzon").count, 2); // deprecated alias
 });
 
 test("shipped inventory summaries reconcile with underlying records", () => {
