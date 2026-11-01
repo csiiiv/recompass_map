@@ -23,13 +23,16 @@ export default function AwardedPopup({ site, onClose }) {
   if (!site) return null;
   const n = Number(site.stack_count) || 1;
   const members = site.members || [];
-  const place = [site.municipality, site.province].filter(Boolean).join(", ");
+  const pinPlace = [site.municipality, site.province].filter(Boolean).join(", ");
   const approx =
     site.geocode_status === "centroid_province"
       ? "Province centroid (approximate)"
       : site.geocode_status === "centroid_municipality"
         ? "Municipality centroid (approximate)"
         : "Approximate location";
+
+  const hostLine = (m) =>
+    [m.municipality, m.province].filter(Boolean).join(", ") || null;
 
   // fuels may arrive as array (JS) or comma string (MapLibre serialization)
   let fuels = site.fuels;
@@ -67,7 +70,7 @@ export default function AwardedPopup({ site, onClose }) {
         <span className="chip">Awarded pipeline</span>
       </div>
       <div className="detail-section">
-        <Row k="Location" v={place} />
+        <Row k="Map pin" v={pinPlace} />
         <Row k="Placement" v={approx} />
         <Row k="Potential (sum)" v={fmt(site.potential_mw)} />
         <Row k="Installed (sum)" v={fmt(site.installed_mw)} />
@@ -80,24 +83,33 @@ export default function AwardedPopup({ site, onClose }) {
             {n > members.length ? ` (showing ${members.length} of ${n})` : ""}
           </h3>
           <ul className="awarded-member-list">
-            {members.map((m, i) => (
-              <li key={i} className="awarded-member">
-                <strong>{m.name}</strong>
-                <span className="hit-rel">
-                  {[m.tech_detail || m.fuel, m.stage, fmt(m.potential_mw)]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </span>
-                {m.company && <span className="deal-muted">{m.company}</span>}
-              </li>
-            ))}
+            {members.map((m, i) => {
+              const host = hostLine(m);
+              return (
+                <li key={i} className="awarded-member">
+                  <strong>{m.name}</strong>
+                  {host && (
+                    <span className="awarded-member-host" title="Host from DOE register">
+                      {host}
+                    </span>
+                  )}
+                  <span className="hit-rel">
+                    {[m.tech_detail || m.fuel, m.stage, fmt(m.potential_mw)]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                  {m.company && <span className="deal-muted">{m.company}</span>}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
       <p className="deal-muted" style={{ marginTop: 10, fontSize: 12 }}>
-        Awarded contracts have no surveyed coordinates — markers are shared
-        centroids. Mixed technologies share one ring (gray). Not screened
-        against sensitive layers.
+        Host places come from the DOE register (text only). The map pin is a
+        shared municipality or province centroid — not a surveyed site.
+        Mixed technologies share one gray ring. Not screened against sensitive
+        layers.
       </p>
     </div>
   );

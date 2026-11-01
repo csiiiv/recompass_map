@@ -1,60 +1,48 @@
-# RE Compass — Philippines
+# RE Compass — Philippines (app)
 
-A public map of where existing and planned renewable energy projects overlap
-with protected areas, Key Biodiversity Areas, marine protected areas, and
-large-scale land deals in the Philippines.
+Vite + React + MapLibre frontend for the public overlap map.
 
-Prototype built for the 4 Nov 2026 consortium workshop (WeSolve / FES /
-Forum for the Future / BetterGov).
+Prototype for the 4 Nov 2026 consortium workshop (WeSolve / FES /
+Forum for the Future / BetterGov). Root project docs:
+[`../README.md`](../README.md), [`../docs/`](../docs/).
 
 ## What it does
 
-- **189 power plants** (DOE grid inventory + SPUG off-grid), filterable by
-  technology, stage, and island group; searchable by name / province / municipality.
-- **4 sensitive layers**: WDPA protected areas (Oct 2026), Key Biodiversity Areas,
-  MSI marine protected areas, Land Matrix large-scale land deals.
-- **Overlap flags**: a plant is flagged when it sits inside or within 5 km of
-  any sensitive layer (plain-geometry screening, not an assessment).
-- **Overlaps table** with CSV download.
-- Light / dark CARTO basemaps, deep-linkable plant selection (`?plant=ID`).
+- **189 power plants** — filter by technology, stage, island; search by name /
+  province / municipality.
+- **1,262 awarded RE contracts** — multi-tech DOE Sheet; one hollow ring per
+  centroid with stack counts (gray when mixed fuels).
+- **Sensitive layers** — WDPA (Oct 2026), confirmed KBAs + Proposed KBAs
+  (Feb 2026 Policy B), MSI MPAs (2013), Land Matrix deals.
+- **Overlap flags** — plant inside or within 5 km of a screened layer
+  (Proposed KBAs and awarded rings are not screened).
+- **Click popups** — plants, sensitive features, awarded stacks, land deals.
+- **Sidebar ⓘ** — per-layer and filter/legend explainers (`infoContent.js`).
+- **Analysis** window + overlaps CSV; light/dark CARTO basemaps; shareable URL
+  params.
 
 ## Run
 
 ```bash
 cd app
-npm install
-npm run dev        # http://localhost:5174
-npm run build      # static bundle in app/dist
+npm install          # --legacy-peer-deps if needed
+npm run dev          # http://localhost:5174/recompass_map/
+npm run build        # static bundle in dist/
+npm test             # analysis.js unit tests
 ```
 
-## Data pipeline
+## Data
 
-```bash
-python3 scripts/01_process_plants.py      # XLSX -> plants.geojson
-python3 scripts/02_process_sensitive.py   # WDPA/KBA/MPA/LandMatrix -> geojson
-python3 scripts/03_overlaps.py            # 5km overlap flags -> overlaps.json
-```
+Static files in `public/data/` (no backend). Regenerate from repo root via
+`scripts/` — see [`../docs/DATA_PIPELINE.md`](../docs/DATA_PIPELINE.md).
 
-Raw inputs live in `data_sources/`. Outputs are static files under
-`app/public/data/` — the app has no backend.
-
-## Data sources
-
-| Layer | Source | Vintage |
+| Layer | Source (repo `data_sources/`) | Vintage |
 | --- | --- | --- |
-| Power plants | DOE Philippine Power Plant Inventory (grid + SPUG) | 2026 |
-| Protected areas | WDPA/WDOECM PHL (protectedplanet.net) | Oct 2026 |
-| KBAs | Key Biodiversity Areas Partnership | 2025 |
-| MPAs | UP-MSI MPA pin locations | 2013 |
-| Land deals | Land Matrix | 2026 pull |
+| Power plants | DOE inventory XLSX | 2026 |
+| Awarded RE | `Awarded_RE_Service_Contracts.xlsx` | 2026 |
+| Protected areas | WDPA PHL zip | Oct 2026 |
+| KBAs | `Philippines_KBA_Feb2026.zip` | Feb 2026 |
+| MPAs | UP-MSI zip | 2013 |
+| Land deals | Land Matrix export + API JSON | 2026 |
 
-**Pending layers** (not yet in v1): municipal waters (15 km, UP-MSI), ancestral
-domains (CADT/CALT, NCIP).
-
-## Caveats
-
-- Overlap flags are **screening signals**, not judgments about projects.
-- WDPA point features (no boundary published) are buffered as points only.
-- Land Matrix polygons are deal *areas*, not project footprints; overlap means
-  the plant falls inside a deal area boundary.
-- MPA data is from 2013 and undercounts newer sites.
+Pending (disabled toggles): municipal waters, ancestral domains.

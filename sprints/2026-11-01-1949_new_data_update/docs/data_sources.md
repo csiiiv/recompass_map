@@ -1,8 +1,9 @@
 # Sprint: new data update (2026-11-01)
 
-Staged raw pulls for a data refresh. Files live under `../data/`.
-Nothing here is wired into `data_sources/` or the map pipeline yet —
-canonical live inventory remains [`docs/DATA_SOURCES.md`](../../../docs/DATA_SOURCES.md).
+Staged raw pulls for the 2026-11-01 refresh. Files live under `../data/`.
+**Shipped:** KBA Policy B + multi-tech awarded are in live `data_sources/`
+and the map; this folder keeps pull provenance and identical-hash copies.
+Canonical inventory: [`docs/DATA_SOURCES.md`](../../../docs/DATA_SOURCES.md).
 
 **Review / recommendations (Policy B, sequencing, checklists):**
 [`review_and_recommendations.md`](review_and_recommendations.md)

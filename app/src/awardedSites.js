@@ -48,6 +48,9 @@ export function aggregateAwardedSites(features) {
         type: "Feature",
         geometry: { type: "Point", coordinates: [lng, lat] },
         properties: {
+          // Stable share-link key (pre-display coords, 5 dp).
+          lng: Number(lng.toFixed(5)),
+          lat: Number(lat.toFixed(5)),
           island: p.island || null,
           geocode_status: p.geocode_status || null,
           province: p.province || null,
@@ -87,6 +90,10 @@ export function aggregateAwardedSites(features) {
       tech_detail: p.tech_detail || fuel,
       potential_mw: p.potential_mw,
       installed_mw: p.installed_mw,
+      // DOE host text (not surveyed coords) — often differs within one pin
+      municipality: p.municipality || null,
+      province: p.province || null,
+      island: p.island || null,
     });
   }
 

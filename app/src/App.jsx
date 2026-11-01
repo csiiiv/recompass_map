@@ -3,6 +3,15 @@ import { Popup as MapLibrePopup } from "maplibre-gl";
 import { createMap, switchBasemap } from "./maplibre.js";
 import { fuelColor, LAYERS, HALO, FLAG_COLOR, layerColor } from "./constants.js";
 import { aggregateAwardedSites, awardedStrokeMatch } from "./awardedSites.js";
+import {
+  DEFAULT_VISIBLE,
+  parseShareState,
+  writeShareState,
+  sensitivePropsFromShareId,
+  formatAwardedCoord,
+  selectionFromState,
+  visibleWithSelection,
+} from "./shareUrl.js";
 import DetailPanel from "./DetailPanel.jsx";
 import DealPopup from "./DealPopup.jsx";
 import SensitivePopup from "./SensitivePopup.jsx";
@@ -11,6 +20,46 @@ import Sidebar from "./Sidebar.jsx";
 import OverlapsList from "./OverlapsList.jsx";
 import HelpNote from "./HelpNote.jsx";
 import AnalysisModal from "./AnalysisModal.jsx";
+
+function emptyShare() {
+  return {
+    filters: { query: "", fuel: "all", status: "all", island: "all" },
+    visible: { ...DEFAULT_VISIBLE },
+    dark: false,
+    selection: { type: null },
+  };
+}
+
+const initialShare =
+  typeof window !== "undefined" ? parseShareState() : emptyShare();
+
+function selectionToUiState(selection) {
+  const out = {
+    plant: null,
+    deal: null,
+    sensitive: null,
+    awardedCoord: null,
+  };
+  if (!selection?.type) return out;
+  if (selection.type === "plant") out.plant = selection.plant;
+  if (selection.type === "deal") out.deal = selection.deal;
+  if (selection.type === "area") {
+    out.sensitive = {
+      layer: selection.layer,
+      props: sensitivePropsFromShareId(selection.layer, selection.id),
+    };
+  }
+  if (selection.type === "awarded") {
+    out.awardedCoord = {
+      lng: selection.lng,
+      lat: selection.lat,
+      coord: selection.coord,
+    };
+  }
+  return out;
+}
+
+const initialUi = selectionToUiState(initialShare.selection);
 
 const SENSITIVE_SOURCES = [
   { id: "protected_areas", file: "data/protected_areas.geojson", type: "polygon" },
@@ -49,6 +98,38 @@ function matchSensitiveFeature(layer, props, candidate) {
   return c.name === props.name;
 }
 
+function sensitiveShareIdsEqual(layer, a, b) {
+  if (layer === "protected_areas") return a.wdpa_id == b.wdpa_id;
+  if (layer === "kba" || layer === "kba_proposed") return a.id == b.id;
+  if (layer === "mpa")
+    return a.SITE_CODE == b.SITE_CODE || a.ID == b.ID;
+  return a.name === b.name;
+}
+
+/** Rough center for flyTo (point, or bbox midpoint of polygon rings). */
+function featureCenter(f) {
+  const g = f?.geometry;
+  if (!g) return null;
+  if (g.type === "Point") return g.coordinates;
+  const ring =
+    g.type === "Polygon"
+      ? g.coordinates?.[0]
+      : g.type === "MultiPolygon"
+        ? g.coordinates?.[0]?.[0]
+        : null;
+  if (!ring?.length) return null;
+  let sx = 0;
+  let sy = 0;
+  let n = 0;
+  for (const [x, y] of ring) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    sx += x;
+    sy += y;
+    n += 1;
+  }
+  return n ? [sx / n, sy / n] : null;
+}
+
 // Escape user-sourceable strings before they go into tooltip HTML.
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({
@@ -74,37 +155,25 @@ export default function App() {
   const mapRef = useRef(null);
   const overlayWiredRef = useRef(null); // map instance with deal/sensitive handlers
   const sensitiveDataRef = useRef({}); // fetched sensitive-layer FeatureCollections
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState(initialShare.dark);
   const [ready, setReady] = useState(false);
   const [styleEpoch, setStyleEpoch] = useState(0);
+  const [sensitiveEpoch, setSensitiveEpoch] = useState(0); // bumps when overlay GeoJSON lands
   const [plants, setPlants] = useState(null);
   const [overlaps, setOverlaps] = useState(null);
   const [awarded, setAwarded] = useState(null); // full register (incl. unmapped) for analysis
   const [awardedSites, setAwardedSites] = useState(null); // aggregated map markers
   const [awardedStats, setAwardedStats] = useState(null);
   const [awardedSelected, setAwardedSelected] = useState(null); // stacked site props
+  const [pendingAwardedCoord, setPendingAwardedCoord] = useState(
+    initialUi.awardedCoord
+  );
   const [dataError, setDataError] = useState(false);
-  const [selected, setSelected] = useState(null); // plant index
-  const [dealSelected, setDealSelected] = useState(null); // Land Matrix deal_id
-  const [sensitiveSelected, setSensitiveSelected] = useState(null); // { layer, props }
-  const [visible, setVisible] = useState({
-    plants: true,
-    awarded: false,
-    protected_areas: true,
-    kba: false,
-    kba_proposed: false,
-    mpa: false,
-    land_deals: false,
-    land_deal_sites: false,
-    ancestral_domains: false,
-    municipal_waters: false,
-  });
-  const [filters, setFilters] = useState({
-    query: "",
-    fuel: "all",
-    status: "all",
-    island: "all",
-  });
+  const [selected, setSelected] = useState(initialUi.plant); // plant index
+  const [dealSelected, setDealSelected] = useState(initialUi.deal); // Land Matrix deal_id
+  const [sensitiveSelected, setSensitiveSelected] = useState(initialUi.sensitive); // { layer, props }
+  const [visible, setVisible] = useState(initialShare.visible);
+  const [filters, setFilters] = useState(initialShare.filters);
   const [showList, setShowList] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [sideOpen, setSideOpen] = useState(
@@ -120,25 +189,6 @@ export default function App() {
         })
       : null
   );
-
-  // ---- initial state from URL params ----
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("dark") === "1") setDark(true);
-    const p = params.get("plant");
-    if (p != null && /^\d+$/.test(p)) setSelected(Number(p));
-    const q = params.get("q");
-    const fuel = params.get("fuel");
-    const status = params.get("status");
-    const island = params.get("island");
-    setFilters((f) => ({
-      ...f,
-      query: q ?? f.query,
-      fuel: fuel ?? f.fuel,
-      status: status ?? f.status,
-      island: island ?? f.island,
-    }));
-  }, []);
 
   // ---- load data ----
   useEffect(() => {
@@ -487,6 +537,7 @@ export default function App() {
         .then((fc) => {
           if (map.getSource(cfg.id) || !map.getStyle()) return;
           sensitiveDataRef.current[cfg.id] = fc; // kept for selection lookups
+          setSensitiveEpoch((n) => n + 1);
           map.addSource(cfg.id, { type: "geojson", data: fc });
           if (cfg.type === "polygon") {
             const isProposed = cfg.id === "kba_proposed";
@@ -765,38 +816,155 @@ export default function App() {
     }
   }, [visible, styleEpoch]);
 
-  // ---- sync filters to URL ----
+  // Keep the layer for an open selection visible (and reflected in the hash).
   useEffect(() => {
-    const url = new URL(window.location);
-    const setP = (k, v) => {
-      if (v && v !== "all" && v !== "") url.searchParams.set(k, v);
-      else url.searchParams.delete(k);
-    };
-    setP("q", filters.query);
-    setP("fuel", filters.fuel);
-    setP("status", filters.status);
-    setP("island", filters.island);
-    window.history.replaceState({}, "", url);
-  }, [filters]);
+    const sel = selectionFromState({
+      plant: selected,
+      deal: dealSelected,
+      sensitive: sensitiveSelected,
+      awarded: awardedSelected,
+    });
+    if (!sel.type) return;
+    setVisible((v) => {
+      const next = visibleWithSelection(v, sel);
+      const same = Object.keys(next).every((k) => next[k] === v[k]);
+      return same ? v : next;
+    });
+  }, [selected, dealSelected, sensitiveSelected, awardedSelected]);
 
-  // ---- fly to selected ----
+  // ---- sync shareable view to URL hash (#fuel=…&layers=…&area=…) ----
+  useEffect(() => {
+    writeShareState({
+      filters,
+      visible,
+      dark,
+      plant: selected,
+      deal: dealSelected,
+      sensitive: sensitiveSelected,
+      awarded: awardedSelected,
+    });
+  }, [
+    filters,
+    visible,
+    dark,
+    selected,
+    dealSelected,
+    sensitiveSelected,
+    awardedSelected,
+  ]);
+
+  // Resolve awarded site from #awarded=lng,lat once sites are aggregated.
+  useEffect(() => {
+    if (!pendingAwardedCoord || !awardedSites?.length) return;
+    const want =
+      pendingAwardedCoord.coord ||
+      formatAwardedCoord(pendingAwardedCoord.lng, pendingAwardedCoord.lat);
+    const site = awardedSites.find((f) => {
+      const p = f.properties || {};
+      const key =
+        p.lng != null && p.lat != null
+          ? formatAwardedCoord(p.lng, p.lat)
+          : formatAwardedCoord(
+              f.geometry?.coordinates?.[0],
+              f.geometry?.coordinates?.[1]
+            );
+      return key === want;
+    });
+    if (!site) return;
+    let members = [];
+    try {
+      members = JSON.parse(site.properties.members_json || "[]");
+    } catch {
+      members = [];
+    }
+    setSelected(null);
+    setDealSelected(null);
+    setSensitiveSelected(null);
+    setAwardedSelected({ ...site.properties, members });
+    setPendingAwardedCoord(null);
+  }, [pendingAwardedCoord, awardedSites]);
+
+  // Enrich sensitive selection with full GeoJSON props once the layer is loaded.
+  useEffect(() => {
+    if (!sensitiveSelected?.layer || !ready) return;
+    const { layer, props } = sensitiveSelected;
+    const fc = sensitiveDataRef.current[layer];
+    if (!fc?.features?.length) return;
+    const hit = fc.features.find((f) => matchSensitiveFeature(layer, props, f));
+    if (!hit) return;
+    const next = hit.properties || {};
+    // Avoid loops when already resolved (same identifying fields + name).
+    if (
+      next.name === props.name &&
+      sensitiveShareIdsEqual(layer, props, next)
+    ) {
+      return;
+    }
+    setSensitiveSelected({ layer, props: { ...next } });
+  }, [sensitiveSelected, ready, styleEpoch, sensitiveEpoch]);
+
+  // ---- fly to selected plant / deal / area / awarded ----
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !plants) return;
-    const url = new URL(window.location);
-    if (selected == null) url.searchParams.delete("plant");
-    else url.searchParams.set("plant", String(selected));
-    window.history.replaceState({}, "", url);
-    if (selected == null) return;
-    const f = plants[selected];
-    if (f?.geometry) {
+    if (!map || !ready) return;
+
+    if (selected != null && plants?.[selected]?.geometry) {
       map.flyTo({
-        center: f.geometry.coordinates,
+        center: plants[selected].geometry.coordinates,
         zoom: Math.max(map.getZoom(), 8.5),
         speed: 0.9,
       });
+      return;
     }
-  }, [selected, plants]);
+
+    if (awardedSelected?.lng != null && awardedSelected?.lat != null) {
+      map.flyTo({
+        center: [Number(awardedSelected.lng), Number(awardedSelected.lat)],
+        zoom: Math.max(map.getZoom(), 8.5),
+        speed: 0.9,
+      });
+      return;
+    }
+
+    if (dealSelected != null) {
+      for (const source of ["land_deal_sites", "land_deals"]) {
+        const fc = sensitiveDataRef.current[source];
+        const f = (fc?.features || []).find(
+          (feat) => feat.properties?.deal_id == dealSelected
+        );
+        if (!f?.geometry) continue;
+        const c = featureCenter(f);
+        if (c) {
+          map.flyTo({ center: c, zoom: Math.max(map.getZoom(), 8), speed: 0.9 });
+          return;
+        }
+      }
+    }
+
+    if (sensitiveSelected?.layer) {
+      const fc = sensitiveDataRef.current[sensitiveSelected.layer];
+      const f = (fc?.features || []).find((feat) =>
+        matchSensitiveFeature(
+          sensitiveSelected.layer,
+          sensitiveSelected.props,
+          feat
+        )
+      );
+      const c = f ? featureCenter(f) : null;
+      if (c) {
+        map.flyTo({ center: c, zoom: Math.max(map.getZoom(), 8), speed: 0.9 });
+      }
+    }
+  }, [
+    selected,
+    plants,
+    awardedSelected,
+    dealSelected,
+    sensitiveSelected,
+    ready,
+    styleEpoch,
+    sensitiveEpoch,
+  ]);
 
   // ---- selection highlight: ring (plant/deal site) + line (deal polygon) ----
   // Redrawn whenever the selection changes; runs once sources exist. The
@@ -851,7 +1019,15 @@ export default function App() {
     // ready re-triggers this once the map (and its sources) exist; plants
     // guards the initial URL-selected plant; styleEpoch re-fires after
     // basemap swaps (transformStyle rebuilds sources from PERSISTENT set).
-  }, [selected, dealSelected, sensitiveSelected, plants, styleEpoch, ready]);
+  }, [
+    selected,
+    dealSelected,
+    sensitiveSelected,
+    plants,
+    styleEpoch,
+    ready,
+    sensitiveEpoch,
+  ]);
 
   // ---- resize hooks ----
   useEffect(() => {

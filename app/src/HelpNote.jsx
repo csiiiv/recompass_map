@@ -24,7 +24,8 @@ export default function HelpNote() {
             protected areas (green), confirmed KBAs (pink), Proposed KBAs
             (dashed, display-only), land deals (purple), MPAs (cyan points).
             Click a plant for its overlap list, or click a sensitive area /
-            land deal for its attributes. Proposed KBAs do not flag plants.
+            awarded ring / land deal for details. Sidebar ⓘ buttons explain
+            each layer and the filters. Proposed KBAs do not flag plants.
           </p>
           <p>
             Data: DOE power plant inventory (grid + SPUG), WDPA Oct 2026, KBA

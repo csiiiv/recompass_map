@@ -492,6 +492,12 @@ html.dark .maplibregl-ctrl-attrib a {
   border-bottom: 1px dashed var(--border);
 }
 
+.awarded-member-host {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.35;
+}
+
 .awarded-member:last-child {
   border-bottom: none;
   padding-bottom: 0;

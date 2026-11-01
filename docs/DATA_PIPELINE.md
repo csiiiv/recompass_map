@@ -18,7 +18,7 @@ areas.geojson (Land Matrix)     →   "                          →   land_deal
 locations.geojson (Land Matrix) → 08_land_locations.py        →   land_deal_sites.geojson (60 pts)
 deals.json (Land Matrix)        → 09_deal_details.py (API)    →   deal_details.json (325 deals)
 deals.json + deal_details.json  → 10_deal_info.py             →   land_deal_info.json (web lookup)
-                                    03_overlaps.py             →   overlaps.json (129 plants flagged)
+                                    03_overlaps.py             →   overlaps.json (~127 plants flagged)
                                     05_simplify.py             →   (in-place, ~10x size cut)
 Awarded_RE_Service_Contracts.xlsx → 06_extract_awarded.py     →   awarded_projects.geojson (1262 multi-tech)
   (optional --pdf solar audit)
@@ -44,8 +44,12 @@ Shapefile → GeoJSON with pyshp (no GDAL needed):
   polygons + points shapefiles — all merged; 2026 field names (`SITE_ID`,
   `NAME_ENG`, …) mapped to friendly keys; MultiPoint shapeType (8) → first
   point.
-- KBA/MPA: straightforward; MPA DBF is latin-1 (`encoding="latin-1",
-  encodingErrors="replace"` — its NAME fields contain `\xa0`).
+- KBA (Policy B): Feb 2026 shapefile split on `KBA_Class` —
+  `"KBA"` → `kba.geojson` (overlap screen); `"Proposed KBA"` →
+  `kba_proposed.geojson` (map toggle only). Friendly property rename
+  (`KBA_Name` → `name`, etc.).
+- MPA: straightforward; DBF is latin-1 (`encoding="latin-1",
+  encodingErrors="replace"` — NAME fields contain `\xa0`).
 - Land Matrix: passed through as-is.
 - Polygons keep ring structure as MultiPolygon-of-single-ring (adequate for
   fill rendering and point-in-polygon flagging).
@@ -93,7 +97,9 @@ For each plant point vs each sensitive feature:
 3. else min distance to ring segments (lat-adjusted equirectangular km)
    ≤ 5 km → `within 5 km`.
 Output: `overlaps.json` keyed by plant index with `{layer, name, rel, d_km}`.
-Point layers (MPA) use center distance only.
+Point layers (MPA, land-deal sites) use center distance only.
+**Does not load `kba_proposed`** — Proposed KBAs stay display-only (Policy B).
+Awarded contracts are never screened here.
 
 ### `05_simplify.py`
 Douglas-Peucker (iterative, no dependency) run **after** overlap computation:
@@ -114,19 +120,23 @@ Centroids (geographic mean) of coordinate-bearing plants grouped by
 normalized municipality@province and province. Normalization strips "City",
 multi-municipality strings ("Aringay and Caba") split on and/,.
 
-## Pending data refresh (2026-11-01)
+## Data refresh (2026-11-01) — shipped
 
-Raw files staged in `sprints/2026-11-01-1949_new_data_update/data/`.
-See [`docs/DATA_SOURCES.md`](DATA_SOURCES.md) and
-[`sprints/.../docs/review_and_recommendations.md`](../sprints/2026-11-01-1949_new_data_update/docs/review_and_recommendations.md).
+Canonical raw files live in `data_sources/`. Sprint staging + review notes
+remain under `sprints/2026-11-01-1949_new_data_update/` (including the archived
+2025 KBA zip).
 
-1. **KBA — done (Policy B).** Confirmed → `kba.geojson` (overlap screen);
-   Proposed → `kba_proposed.geojson` (map toggle only). Profiles xlsx not
-   joined yet. Click popups for KBA/WDPA/MPA surface existing GeoJSON attrs.
-2. **Awarded — done.** Sheet ingest (1,262 multi-tech); UI + Analysis
-   pipeline tab; PDFs retained for provenance; `--pdf` audit path kept.
-3. **WDPA / MPA** — staged copies are byte-identical to live; no pipeline
-   change.
+| Item | Status |
+| --- | --- |
+| KBA Policy B (`kba` + `kba_proposed`) | Done — `02` → `03` → `05` + UI |
+| Awarded multi-tech Sheet (`06`) | Done — 1,262 contracts; PDFs provenance |
+| WDPA / MPA | Unchanged (staged copies identical) |
+| KBA profiles xlsx join | Deferred |
+| Awarded overlap screening | Deferred (centroid quality) |
+| Sidebar ⓘ + click popups (sensitive / awarded) | Done in app |
+
+Follow-up: optional PSGC gazetteer to improve awarded municipality coverage
+beyond the plant-derived 139-muni set.
 
 ## Adding the pending layers (when data arrives)
 

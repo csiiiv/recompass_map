@@ -14,6 +14,7 @@ export const SECTION_INFO = {
       "Stage (Commercial Operation, Committed, Indicative, …) applies to the plant inventory only — awarded contracts use their own Development / Pre-Development stages in the popup, not this dropdown.",
       "Click a technology in either legend to set the same technology filter; click again to clear.",
       "Reset clears search and all dropdowns.",
+      "The address bar updates as you explore — copy the #… link to share filters, visible layers, and the open selection (plant, land deal, sensitive area, or awarded site).",
     ],
   },
   plants_legend: {
@@ -61,8 +62,8 @@ export const LAYER_INFO = {
       "DOE-awarded renewable energy service contracts (Solar, Wind, Hydro, Geothermal, Biomass, Ocean). Separate from operating plants.",
     bullets: [
       "Primary ingest is the multi-tech Sheet export (~1,260 contracts); per-tech PDFs kept for provenance.",
-      "No lat/lon in source — mapped to municipality or province centroids via a plant-derived gazetteer. Offshore and hard-to-parse hosts stay unmapped.",
-      "Map shows one ring per centroid; stacks get a count. Mixed fuels at one place share a gray ring.",
+      "No lat/lon in source — only DOE host names. Mapped to municipality or province centroids via a plant-derived gazetteer (~280 muni / ~620 province / ~360 unmapped). Offshore and hard-to-parse hosts stay unmapped.",
+      "Map shows one ring per centroid; stacks get a count. Mixed fuels at one place share a gray ring. The popup lists each contract’s DOE host place; Map pin is the shared approximate point.",
       "Not included in plant overlap screening (geocode quality).",
     ],
     meta: [

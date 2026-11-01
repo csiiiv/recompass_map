@@ -1,10 +1,13 @@
 # Review & recommendations — 2026-11-01 data refresh
 
-Working notes for what we are reviewing, how, and what we recommend
-before wiring staged files into `data_sources/` and the map.
+Working notes for the 2026-11-01 data refresh. **Shipped on `main`**
+(KBA Policy B, multi-tech awarded, UI popups/ⓘ). Staging folder kept for
+provenance / identical-hash checks; live docs are under `docs/`.
 
 **Staged data:** `sprints/2026-11-01-1949_new_data_update/data/`  
 **Source pull notes:** [`data_sources.md`](data_sources.md)  
+**Sprint changelog (tech):** [`CHANGELOG.md`](CHANGELOG.md)  
+**User-facing what’s new:** [`user_changelog.md`](user_changelog.md)  
 **Live inventory:** [`docs/DATA_SOURCES.md`](../../../docs/DATA_SOURCES.md)
 
 ---
@@ -213,6 +216,8 @@ boundary layer.
    client geocode — not a new map layer.
 4. **Sidebar ⓘ info** — shipped: per-layer + Filters / legend section
    modals (`infoContent.js`). New datasets add a `LAYER_INFO` key.
+5. **Docs pass** — `README`, `app/README`, `HOW_TO_READ`, `ARCHITECTURE`,
+   `DATA_PIPELINE`, `DATA_SOURCES` aligned with shipped behavior (2026-11-02).
 
 ---
 
@@ -225,4 +230,6 @@ boundary layer.
 | Skip WDPA / MPA | | Done |
 | Defer awarded overlaps + profiles join | | Still deferred |
 | KBA/WDPA/MPA click popups (existing attrs) | | Done in code |
+| Sidebar ⓘ + awarded markers | | Done in code |
+| Docs aligned to shipped build | | Done (2026-11-02) |
 | Implementation order (KBA → awarded → popups) | | Done |

@@ -101,19 +101,27 @@ publisher's release date — that is **Vintage**).
 
 ## Geocoding (awarded contracts)
 
-The PDF has no coordinates. `scripts/07_gazetteer.py` builds a centroid
-gazetteer from the plant inventory's coordinate-bearing municipalities
-(139 municipalities, 59 provinces). Client-side, each awarded project is
-placed at:
+Neither the Sheet nor the DOE PDFs include coordinates.
+`scripts/07_gazetteer.py` builds a centroid gazetteer from the plant
+inventory's coordinate-bearing municipalities (139 municipalities, 59
+provinces). Client-side, each awarded project is placed at:
 
 1. its municipality centroid, if known; else
 2. its province centroid; else
 3. left unmapped and counted in the sidebar disclosure.
 
-Solar-only era: 385 placed / 112 unmapped. Multi-tech Sheet (2026-11-01):
-~899 placed / 363 unmapped — many wind rows are `(Offshore)` or
-multi-province. **Upgrade path**: an official PSGC municipality shapefile
-(and offshore handling) would raise coverage and improve accuracy.
+The map then aggregates geocoded rows to **one ring per centroid** (mixed
+technologies share a gray ring; stack counts label overlaps). Roughly
+~280 municipality-level / ~620 province-level / ~360 unmapped with the
+current plant-derived gazetteer — many wind rows are `(Offshore)` or
+multi-host strings the gazetteer does not cover. The awarded popup lists
+each contract’s DOE municipality/province text even when several share one
+pin.
+
+**Upgrade path (noted, not shipped):** a PSGC city/municipality (optional
+barangay) lookup with aliases and multi-host parsing — extend
+`07_gazetteer.py` + client geocode. Barangay points only help once the
+awarded source carries brgy names (Sheet today does not).
 
 ## Sensitive pending layers
 
@@ -124,21 +132,20 @@ multi-province. **Upgrade path**: an official PSGC municipality shapefile
 
 Both appear in the UI as dashed, disabled toggles so the gaps are visible.
 
-## Pending data refresh (2026-11-01)
+## Data refresh (2026-11-01) — shipped
 
-Staged under `sprints/2026-11-01-1949_new_data_update/data/` (pulled
-2026-11-01). Not yet copied into `data_sources/` or run through the
-pipeline. Full pull notes:
-[`sprints/.../docs/data_sources.md`](../sprints/2026-11-01-1949_new_data_update/docs/data_sources.md).
-Review criteria, Policy B toggles, and sequenced recommendations:
+Pulled 2026-11-01; canonical copies are in `data_sources/` and the pipeline
+outputs above. Sprint staging / identical-hash checks / review narrative:
+[`sprints/.../docs/data_sources.md`](../sprints/2026-11-01-1949_new_data_update/docs/data_sources.md),
 [`sprints/.../docs/review_and_recommendations.md`](../sprints/2026-11-01-1949_new_data_update/docs/review_and_recommendations.md).
+2025 KBA zip archived under the sprint `data/kba/archive/`.
 
-| Layer | Staged file(s) | vs current | Action |
-| --- | --- | --- | --- |
-| Awarded RE (all tech) | Sheet + PDFs | **Shipped** — Sheet ingest, 1,262 multi-tech; UI + Analysis updated | Done |
-| KBA | `kba/Philippines_KBA_Feb2026_Drive.zip` (+ HDX profiles xlsx) | **Shipped** as Policy B (confirmed + Proposed toggle) | Done — see § Key Biodiversity Areas above |
-| WDPA | `protected_areas/WDPA_WDOECM_Oct2026_Public_PHL_Drive.zip` | Identical hash to current | No change |
-| MPA | `mpa/MarineProtectedAreas_*.zip` | Identical hash to current (still 2013) | No change |
+| Layer | Live file(s) | Outcome |
+| --- | --- | --- |
+| Awarded RE (all tech) | Sheet + tech PDFs in `data_sources/` | **Shipped** — 1,262 multi-tech; UI + Analysis |
+| KBA | `Philippines_KBA_Feb2026.zip` (+ profiles xlsx staged) | **Shipped** Policy B (confirmed + Proposed toggle) |
+| WDPA | existing Oct 2026 zip | Unchanged (Drive re-share identical) |
+| MPA | existing 2013 zip | Unchanged (HDX/Drive identical; still 2013) |
 
 ### Awarded Sheet snapshot
 
@@ -171,14 +178,15 @@ product rule changes.
 - Shipped as Policy B: confirmed in overlaps; Proposed as separate dashed
   toggle, excluded from plant flags.
 
-### Integration order
+### Integration status
 
 1. **KBA Policy B — done** (2026-11-01): `02 → 03 → 05`, UI Proposed toggle.
-2. **Awarded Sheet — done** (2026-11-01): rewrite `06` + multi-tech UI.
-3. Leave WDPA / MPA as-is; note MPA still 2013.
-4. Optional follow-ups: KBA profiles xlsx join; awarded overlap screening
-   (still deferred). KBA/WDPA/MPA click popups shipped (attrs already on
-   features).
+2. **Awarded Sheet — done** (2026-11-01): rewrite `06` + multi-tech UI /
+   markers / Analysis tab.
+3. **WDPA / MPA** — left as-is; MPA still 2013.
+4. **UI explainers** — layer/filter ⓘ modals + sensitive/awarded click popups.
+5. **Still deferred:** KBA profiles xlsx join; awarded overlap screening;
+   PSGC gazetteer upgrade; CADT / municipal waters.
 
 ## Re-fetching
 

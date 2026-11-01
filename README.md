@@ -29,14 +29,17 @@ areas, and large-scale land deals in the Philippines.**
   option, and CSV downloads. Contract estimates stay separate from the plant
   inventory and are not screened for overlaps.
 - **Overlap flags**: a plant is flagged when it sits inside or within 5 km of
-  any sensitive layer (screening signal, not an assessment).
-- **Land deal details**: clicking a Land Matrix deal polygon or site point
-  opens a popup with operating company, investors, intention, deal size,
-  status, contracts, and linked data sources — the per-deal content from
-  landmatrix.org.
-- **Overlaps table** with CSV download; hover tooltips; shareable URLs
-  (`?plant=`, `?fuel=`, `?status=`, `?island=`, `?q=`, `?dark=1`);
-  light/dark CARTO basemaps.
+  a screened sensitive layer (confirmed KBA, WDPA, MPA, land deals —
+  screening signal, not an assessment). Proposed KBAs are display-only.
+- **Click details**: plants (overlaps list), sensitive polygons/points
+  (existing attrs), awarded rings (stacked contracts), Land Matrix deals
+  (company, investors, contracts, sources).
+- **Sidebar ⓘ**: short modals for each layer plus Filters / legends
+  (source, vintage, screening yes/no).
+- **Overlaps table** with CSV download; hover tooltips; shareable **hash**
+  URLs for filters, layers, theme, and selection
+  (`#fuel=Solar&layers=…&area=kba:177` or `deal=` / `awarded=` / `plant=`);
+  light/dark CARTO basemaps. Legacy `?fuel=…` links still open.
 
 ## Repo layout
 
@@ -98,8 +101,8 @@ for provenance, licenses, and known quality issues per layer.
 
 - Overlap flags are **screening signals**, not judgments about projects.
 - Awarded-contract locations are **centroids** (municipality/province), not
-  actual site coordinates — ~899/1262 placed, ~363 await coordinates
-  (offshore / multi-province often unmapped).
+  actual site coordinates — ~899/1262 placed, ~363 unmapped (offshore /
+  multi-province). Map shows one ring per place; mixed fuels share a gray ring.
 - Land Matrix polygons are deal *areas*, not project footprints.
 - The 2013 MPA layer undercounts newer sites.
 - See [`docs/HOW_TO_READ.md`](docs/HOW_TO_READ.md) for the full user-facing guide.
